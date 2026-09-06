@@ -1,0 +1,5 @@
+<resources>
+    <!-- Night-mode override for colorAccent only; see values/colors.xml's doc comment. The
+         launcher icon's original pale cream reads fine here, since night mode's surface is dark. -->
+    <color name="dashtone_cream">#FFE9A8</color>
+</resources>

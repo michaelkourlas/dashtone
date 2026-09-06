@@ -1,0 +1,60 @@
+<resources>
+    <string name="app_name">Dashtone</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_category_library">Library</string>
+    <string name="settings_category_library_summary">Dashtone automatically keeps your library in sync with the files on your device. Use Rescan Library to trigger a resync immediately.</string>
+    <string name="settings_permission_title">Music Access</string>
+    <string name="permission_rationale_message">Dashtone needs permission to read your music library before it can show up in the car\'s media browser. Tap to grant access.</string>
+    <string name="permission_granted_message">Permission granted.</string>
+    <string name="permission_denied_message">Permission denied. Tap to open app settings and grant it from Permissions.</string>
+    <string name="rescan_library_action">Rescan Library</string>
+    <string name="syncing_library_message">Syncing library…</string>
+    <string name="settings_last_synced_never">Never synced</string>
+    <string name="settings_last_synced_format">Last synced %1$s</string>
+    <string name="settings_included_folders_title">Included Folders</string>
+    <string name="settings_no_folders_found">No folders found yet -- grant access and rescan first.</string>
+    <string name="settings_category_browse_categories">Browse Categories</string>
+    <string name="settings_browse_categories_summary">The car only shows the first 3 enabled categories as tabs; the rest are nested under \"More.\" Changes here take effect the next time you open Dashtone in the car\'s media app.</string>
+    <string name="settings_move_category_up">Move Up</string>
+    <string name="settings_move_category_down">Move Down</string>
+    <string name="settings_move_up_symbol">▲</string>
+    <string name="settings_move_down_symbol">▼</string>
+    <string name="settings_category_shuffle">Shuffle</string>
+    <string name="settings_category_shuffle_summary">Controls what the \"Shuffle Albums,\" \"Shuffle Artists,\" and similar actions in the browse tree do.</string>
+    <string name="settings_category_shuffle_mode_title">Category Shuffle Mode</string>
+    <string name="preferences_about_category_name">About</string>
+    <string name="preferences_about_changelog_title">Changelog</string>
+    <string name="preferences_about_version_summary">Version %1$s</string>
+    <string name="preferences_about_license_title">License</string>
+    <string name="preferences_about_license_summary">Apache License 2.0</string>
+    <string name="preferences_about_privacy_title">Privacy Policy</string>
+    <string name="preferences_about_third_party_embedded_title">Third-party notices (embedded code)</string>
+    <string name="preferences_about_third_party_packages_title">Third-party notices (packages)</string>
+    <string name="copyright">Copyright © 2026 Michael Kourlas</string>
+    <string name="github_url" translatable="false">https://github.com/michaelkourlas/dashtone</string>
+
+    <!-- Each entry doubles as this ListPreference's collapsed summary (see
+         preferences.xml's android:summary="%s"), so it has to read as a complete, standalone
+         explanation of that mode on its own, not just a label. Kept parallel in structure across
+         all three ("X play in Y order; songs within each play in Z order") so the one changed
+         word for each mode is what actually stands out. -->
+    <string-array name="category_shuffle_mode_entries">
+        <item>Shuffle categories (albums, artists, etc. play in random order; songs within each play in their original order)</item>
+        <item>Shuffle songs (albums, artists, etc. play in their original order; songs within each play in random order)</item>
+        <item>Shuffle categories and songs (both play in random order)</item>
+    </string-array>
+    <string-array name="category_shuffle_mode_values">
+        <item>CATEGORIES</item>
+        <item>SONGS</item>
+        <item>BOTH</item>
+    </string-array>
+
+    <plurals name="settings_included_folders_summary_all">
+        <item quantity="one">All %1$d folder included</item>
+        <item quantity="other">All %1$d folders included</item>
+    </plurals>
+    <plurals name="settings_included_folders_summary_some">
+        <item quantity="one">%1$d of %2$d folder included</item>
+        <item quantity="other">%1$d of %2$d folders included</item>
+    </plurals>
+</resources>

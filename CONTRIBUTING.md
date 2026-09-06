@@ -1,0 +1,1 @@
+Although Dashtone is open source and licensed under the Apache License 2.0, it is not open to pull requests.

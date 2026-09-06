@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Flat single-color version of ic_launcher_foreground for Android 13+ themed (monochrome)
+     icons. The OS applies its own tint over this shape, so it must be a single opaque color with
+     no gradient or accent color, unlike the full-color foreground — same note-plus-speed-lines
+     geometry, kept in exact sync with ic_launcher_foreground.xml (including the merged
+     stem+flag path — see that file for why it's one path instead of two). Alpha on the speed
+     lines is kept (rather than flattened to solid) since it's the same tint applied at different
+     strengths, not a second color.
+
+     Scaled/recentered in exact sync with ic_launcher_foreground.xml — see that file for why. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:pivotX="37" android:pivotY="46" android:scaleX="0.65" android:scaleY="0.65"
+        android:translateX="17" android:translateY="8">
+        <group android:translateX="2" android:translateY="-5">
+            <path android:strokeColor="#FF000000" android:strokeWidth="4" android:strokeAlpha="0.55"
+                android:strokeLineCap="round" android:pathData="M8,50 L26,50" />
+            <path android:strokeColor="#FF000000" android:strokeWidth="4" android:strokeAlpha="0.75"
+                android:strokeLineCap="round" android:pathData="M6,62 L24,62" />
+            <path android:strokeColor="#FF000000" android:strokeWidth="4"
+                android:strokeLineCap="round" android:pathData="M10,74 L22,74" />
+            <group android:pivotX="41" android:pivotY="78" android:rotation="-18">
+                <path android:fillColor="#FF000000"
+                    android:pathData="M28,78 A13,9 0 1,0 54,78 A13,9 0 1,0 28,78 Z" />
+                <path android:fillColor="#FF000000"
+                    android:pathData="M48.5,78 L48.5,18 L57,18 C75,22 78,40 61,53 C67,42 63,28 54,22 L54,78 Z" />
+            </group>
+        </group>
+    </group>
+</vector>

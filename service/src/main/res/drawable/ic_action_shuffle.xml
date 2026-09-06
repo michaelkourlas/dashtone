@@ -1,0 +1,17 @@
+<!-- Material Symbols "shuffle" (outlined), Apache 2.0, fonts.gstatic.com. Path data copied
+     programmatically (comma-normalized from the fetched SVG's compact number format via a script,
+     not hand-typed) to avoid transcription errors, same sourcing convention as the ic_category_*
+     icons (see MediaItemMapper.iconUri's doc comment for why the symbolic android.resource://
+     form matters). Used for the "Shuffle X" sentinel entries, paired with ic_action_play_all for
+     "Play All X". -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960">
+    <group android:translateY="960">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M560,-160v-80h104L537,-367l57,-57,126,126v-102h80v240H560Zm-344,0,-56,-56,504,-504H560v-80h240v240h-80v-104L216,-160Zm151,-377L160,-744l56,-56,207,207,-56,56Z" />
+    </group>
+</vector>

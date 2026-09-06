@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dashtone brand background, v3 ("Motion Note"): a deep-to-mid blue diagonal gradient behind
+     the note mark, evoking forward motion/travel rather than a static studio glow. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="0"
+                android:endX="108"
+                android:endY="108"
+                android:type="linear">
+                <item android:color="#0A3550" android:offset="0.0" />
+                <item android:color="#1479A8" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

@@ -1,0 +1,15 @@
+<resources>
+    <!-- Same blue/cream family as the launcher icon (see ic_launcher_background.xml,
+         ic_launcher_foreground.xml) — Settings is the one screen in the app that isn't rendered
+         by the car host's own browse UI, so it's the one place a brand accent is worth applying. -->
+    <color name="dashtone_blue">#1479A8</color>
+    <color name="dashtone_blue_dark">#0A3550</color>
+    <!-- This darker gold keeps the launcher's cream hue while adding real contrast against a
+         light background. Used as this DayNight theme's colorAccent, it has to read against a
+         plain white day-mode surface (e.g. checked switches/checkboxes on the Included Folders
+         screen), where the launcher's pale #FFE9A8 would be nearly invisible; that value only
+         ever sits on the launcher icon's own dark blue gradient. See values-night/colors.xml for
+         the night-mode override, where the original pale cream is the one that reads well (dark
+         surface). -->
+    <color name="dashtone_cream">#8A6D1F</color>
+</resources>

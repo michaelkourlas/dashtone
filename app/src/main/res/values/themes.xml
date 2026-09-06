@@ -1,0 +1,18 @@
+<resources>
+
+    <!-- Light touch on purpose: standard Material components throughout, just the brand accent
+         colors applied. Settings is a conventional Android preferences screen, not a custom-styled
+         surface — over-theming it would fight the car's own DayNight conventions for little
+         benefit on a screen this utilitarian. -->
+    <style name="Theme.Dashtone" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+        <item name="colorPrimary">@color/dashtone_blue</item>
+        <item name="colorPrimaryDark">@color/dashtone_blue_dark</item>
+        <item name="colorAccent">@color/dashtone_cream</item>
+        <!-- PreferenceFragmentCompat renders every preference (including a PreferenceCategory's
+             own summary) through whatever this points to; the library's own Material-aware
+             layouts are what give a long PreferenceCategory summary like Library's real text
+             wrapping, so this needs to be explicit rather than left to a bare
+             MaterialComponents fallback. -->
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
+    </style>
+</resources>

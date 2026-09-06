@@ -1,0 +1,54 @@
+<resources>
+    <string name="app_name">Dashtone</string>
+    <string name="permission_required_playback_message">Music access is required to show your library. Grant it from Dashtone\'s Settings.</string>
+
+    <string name="category_albums">Albums</string>
+    <string name="category_artists">Artists</string>
+    <string name="category_songs">Songs</string>
+    <string name="category_playlists">Playlists</string>
+    <string name="category_genres">Genres</string>
+    <string name="category_album_artists">Album Artists</string>
+    <string name="category_composers">Composers</string>
+    <string name="category_decades">Decades</string>
+    <string name="category_folders">Folders</string>
+    <string name="category_more">More</string>
+
+    <string name="command_repeat">Repeat</string>
+    <string name="command_shuffle">Shuffle</string>
+
+    <string name="unknown_artist">Unknown Artist</string>
+    <string name="unknown_album">Unknown Album</string>
+    <string name="unknown_genre">Unknown Genre</string>
+    <string name="unknown_album_artist">Unknown Album Artist</string>
+    <string name="unknown_composer">Unknown Composer</string>
+    <string name="unknown_decade">Unknown Decade</string>
+
+    <string name="volume_internal_storage">Internal Storage</string>
+
+    <string name="shuffle_all_songs">Shuffle All Songs</string>
+    <string name="shuffle_all_albums">Shuffle All Albums</string>
+    <string name="shuffle_all_artists">Shuffle All Artists</string>
+    <string name="shuffle_all_genres">Shuffle All Genres</string>
+    <string name="shuffle_all_album_artists">Shuffle All Album Artists</string>
+    <string name="shuffle_all_composers">Shuffle All Composers</string>
+
+    <string name="play_all_songs">Play All Songs</string>
+    <string name="play_all_albums">Play All Albums</string>
+    <string name="play_all_artists">Play All Artists</string>
+    <string name="play_all_genres">Play All Genres</string>
+    <string name="play_all_album_artists">Play All Album Artists</string>
+    <string name="play_all_composers">Play All Composers</string>
+
+    <string name="play_albums">Play Albums</string>
+    <string name="shuffle_albums">Shuffle Albums</string>
+    <string name="play_songs">Play Songs</string>
+    <string name="shuffle_songs">Shuffle Songs</string>
+
+    <string name="all_name_songs">All %1$s Songs</string>
+
+    <string name="subtitle_artist">Artist</string>
+    <string name="subtitle_playlist">Playlist</string>
+    <string name="subtitle_genre">Genre</string>
+    <string name="subtitle_album_artist">Album Artist</string>
+    <string name="subtitle_composer">Composer</string>
+</resources>

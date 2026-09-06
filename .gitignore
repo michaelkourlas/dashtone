@@ -1,0 +1,22 @@
+# JetBrains
+.idea/
+*.iml
+
+# Android
+*.apk
+.kotlin/
+.gradle/
+captures/
+build/
+release/
+testing/
+local.properties
+app/src/main/assets
+
+# Local test music library (not part of the repo)
+test-library/
+
+# Signing
+keystore.properties
+*.jks
+*.keystore

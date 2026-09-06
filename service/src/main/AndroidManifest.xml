@@ -1,0 +1,52 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application android:appCategory="audio">
+
+        <!-- Provides media browsing and playback to the car's Media Center via Media3's
+         MediaLibraryService; the car head unit renders the UI directly from this browse tree.
+         Exported without a custom permission by design: any system media client (car Media
+         Center, Android Auto, Assistant) must be able to bind to browse/control it.
+         Declares both the Media3-native action and the legacy MediaBrowserService action: some
+         car media hosts (confirmed via the AAOS emulator's reference LocalMediaBrowserService)
+         still discover sources by querying for the legacy action only. -->
+        <service
+            android:name="net.kourlas.dashtone.service.playback.DashtoneMediaLibraryService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback"
+            tools:ignore="ExportedService">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaLibraryService" />
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+            <!-- This meta-data is what makes car.media's own source-discovery logic recognize the
+             service; without it, discovery silently skips the service ("belonging to non media
+             template app") even though PackageManager resolves it fine. Confirmed by diffing
+             against the AAOS emulator's reference LocalMediaBrowserService, which declares the
+             same meta-data on its own service element. -->
+            <meta-data
+                android:name="androidx.car.app.launchable"
+                android:value="true" />
+        </service>
+
+        <!-- Serves cached album art to the car head unit's separate process; exported without a
+         custom permission for the same reason as the media service above, and because album art
+         is not sensitive data. -->
+        <provider
+            android:name="net.kourlas.dashtone.service.albumart.AlbumArtContentProvider"
+            android:authorities="net.kourlas.dashtone.service.albumart"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            tools:ignore="ExportedContentProvider" />
+
+    </application>
+
+</manifest>

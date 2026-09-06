@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dashtone mark, v3 ("Motion Note"): an eighth note trailing three speed lines, arriving
+     mid-motion rather than sitting static — "music" first, "moving" second. The note (notehead,
+     stem, flag) is tilted -18 degrees as one rigid group for a dynamic, forward-leaning stance;
+     the speed lines stay unrotated so they always read as horizontal motion regardless of the
+     note's own tilt.
+
+     Every join between the notehead/stem/flag was verified by rendering this exact path data to
+     a bitmap and visually inspecting the seams (not just computed by hand) after several rounds
+     that looked fine on paper but showed a real gap or overhang once actually rendered:
+       - stem meets the notehead only at (54,78), the single point where the ellipse's own
+         tangent is vertical — anywhere else a flat edge either gaps the curve or overhangs it.
+       - stem and flag are one single path, not two shapes sharing an edge. They used to be
+         separate paths that happened to share the exact line from (48.5,22) to (54,22), which
+         looked right in the source but left a visible hairline seam once rendered — most
+         rasterizers antialias each filled shape independently, so a shared edge between two
+         shapes still shows a sliver of whatever is behind them (here, the background gradient
+         cutting through the stem near the top). Merging them into one outline removes the
+         internal edge entirely.
+
+     Scaled to 65% and recentered (pivot at the mark's own unscaled bounding-box center, 37,46)
+     so it sits well inside the ~66dp adaptive-icon safe zone with real margin on every side —
+     the unscaled mark filled most of the 108dp canvas and read as cropped/zoomed in once
+     actually installed, rather than as an icon with room to breathe. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:pivotX="37" android:pivotY="46" android:scaleX="0.65" android:scaleY="0.65"
+        android:translateX="17" android:translateY="8">
+        <group android:translateX="2" android:translateY="-5">
+            <path android:strokeColor="#FFE9A8" android:strokeWidth="4" android:strokeAlpha="0.55"
+                android:strokeLineCap="round" android:pathData="M8,50 L26,50" />
+            <path android:strokeColor="#FFE9A8" android:strokeWidth="4" android:strokeAlpha="0.75"
+                android:strokeLineCap="round" android:pathData="M6,62 L24,62" />
+            <path android:strokeColor="#FFE9A8" android:strokeWidth="4"
+                android:strokeLineCap="round" android:pathData="M10,74 L22,74" />
+            <group android:pivotX="41" android:pivotY="78" android:rotation="-18">
+                <path android:fillColor="#FFFFFF"
+                    android:pathData="M28,78 A13,9 0 1,0 54,78 A13,9 0 1,0 28,78 Z" />
+                <path android:fillColor="#FFFFFF"
+                    android:pathData="M48.5,78 L48.5,18 L57,18 C75,22 78,40 61,53 C67,42 63,28 54,22 L54,78 Z" />
+            </group>
+        </group>
+    </group>
+</vector>

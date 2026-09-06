@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tells R8's resource shrinker (isShrinkResources = true in app/build.gradle.kts) not to
+     strip these: they're never referenced via a compile-time R.drawable.* in Kotlin, only by a
+     runtime-constructed android.resource:// URI string built in MediaItemMapper.iconUri() (see
+     that function's comment for why: car.media's icon loader resolves these by symbolic name via
+     Resources.getIdentifier(), not by packed resource ID, so a raw R.drawable.* int reference
+     would be the wrong URI form even where the shrinker WOULD trace it). With no traceable
+     reference at all, the shrinker marked every one of these "not reachable" and removed them
+     from release builds specifically, confirmed via app/build/outputs/mapping/release/
+     resources.txt, which crashed car.media's own icon-loading code on-device exactly the same
+     way the original wrong-URI-form bug did, just release-build-only since debug builds don't
+     shrink resources. This file is the documented, official way to keep a resource the shrinker
+     can't otherwise prove is used: https://developer.android.com/build/shrink-code#keep-resources -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_category_albums,@drawable/ic_category_artists,@drawable/ic_category_songs,@drawable/ic_category_playlists,@drawable/ic_category_genres,@drawable/ic_category_album_artists,@drawable/ic_category_composers,@drawable/ic_category_decades,@drawable/ic_category_folders,@drawable/ic_category_more,@drawable/ic_action_play_all,@drawable/ic_action_shuffle" />

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(keystore.properties)",
+      "Read(*.jks)",
+      "Read(*.keystore)",
+      "Grep(keystore.properties)",
+      "Grep(*.jks)",
+      "Grep(*.keystore)"
+    ]
+  }
+}
