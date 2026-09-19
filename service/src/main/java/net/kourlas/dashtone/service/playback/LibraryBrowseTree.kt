@@ -315,14 +315,52 @@ class LibraryBrowseTree @Inject constructor(
         val songs = songsForAlbumsView(parentId) ?: return null
         val albums = libraryRepository.albums.first()
         val artists = libraryRepository.artists.first()
-        val settings = if (shuffled) {
-            val mode = libraryRepository.categoryShuffleMode.first()
-            ShuffleSettings(grouping = Grouping.ALBUM, shuffleCategories = mode.shuffleCategories, shuffleSongs = mode.shuffleSongs)
-        } else {
-            ShuffleSettings(grouping = Grouping.ALBUM)
-        }
+        val settings = if (shuffled) albumShuffleSettings() else NATURAL_ALBUM_SETTINGS
         val seed = if (shuffled) Random.nextLong() else 0L
         return mapSongs(GroupedQueueBuilder(settings).build(seed, songs, albums, artists))
+    }
+
+    /** A "Shuffle Albums" tap needs both orderings at once: the shuffled queue to play, and the
+     * natural one [QueueShufflePlayer]'s toggle restores when shuffle is switched back off. Built
+     * from a single read of the songs, albums and artists behind them, where asking
+     * [albumsQueueFor] twice would re-read all three and walk the song set twice over. */
+    suspend fun albumsQueuePairFor(parentId: String): QueuePair? {
+        val songs = songsForAlbumsView(parentId) ?: return null
+        val albums = libraryRepository.albums.first()
+        val artists = libraryRepository.artists.first()
+        val albumNames = albums.associate { it.id to it.name }
+        val artistNames = artists.associate { it.id to it.name }
+        val shuffledOrder = GroupedQueueBuilder(albumShuffleSettings()).build(Random.nextLong(), songs, albums, artists)
+        val naturalOrder = GroupedQueueBuilder(NATURAL_ALBUM_SETTINGS).build(seed = 0, songs, albums, artists)
+        return QueuePair(
+            shuffled = mapSongs(shuffledOrder, albumNames, artistNames),
+            natural = mapSongs(naturalOrder, albumNames, artistNames),
+        )
+    }
+
+    /** [albumsQueuePairFor]'s counterpart for a song-list node, where shuffling is flat: once songs
+     * rather than albums are what's being browsed, there is no category structure left to group by. */
+    suspend fun songsQueuePairFor(parentId: String): QueuePair? {
+        val songs = songsForSongsView(parentId) ?: return null
+        val albumNames = libraryRepository.albums.first().associate { it.id to it.name }
+        val artistNames = libraryRepository.artists.first().associate { it.id to it.name }
+        return QueuePair(
+            shuffled = mapSongs(songs.shuffled(), albumNames, artistNames),
+            natural = mapSongs(songs, albumNames, artistNames),
+        )
+    }
+
+    /** Shared by [albumsQueueFor] and [albumsQueuePairFor] so "Shuffle Albums" means the same
+     * thing whichever one built the queue -- which axis gets randomized is the user's
+     * [net.kourlas.dashtone.service.shuffle.CategoryShuffleMode] setting, not a property of the
+     * call site. */
+    private suspend fun albumShuffleSettings(): ShuffleSettings {
+        val mode = libraryRepository.categoryShuffleMode.first()
+        return ShuffleSettings(
+            grouping = Grouping.ALBUM,
+            shuffleCategories = mode.shuffleCategories,
+            shuffleSongs = mode.shuffleSongs,
+        )
     }
 
     /** The flat song queue for a "Play Songs"/"Shuffle Songs" tap on [parentId] (an album/
@@ -559,15 +597,25 @@ class LibraryBrowseTree @Inject constructor(
      * queue of [SongEntity]s into fully-populated [MediaItem]s. */
     suspend fun mapSongs(songs: List<SongEntity>): List<MediaItem> {
         if (songs.isEmpty()) return emptyList()
-        val albumNamesById = libraryRepository.albums.first().associate { it.id to it.name }
-        val artistNamesById = libraryRepository.artists.first().associate { it.id to it.name }
-        return songs.map { song ->
-            mediaItemMapper.toMediaItem(
-                song = song,
-                albumName = albumNamesById[song.albumId].orEmpty(),
-                artistName = artistNamesById[song.artistId].orEmpty(),
-            )
-        }
+        return mapSongs(
+            songs,
+            libraryRepository.albums.first().associate { it.id to it.name },
+            libraryRepository.artists.first().associate { it.id to it.name },
+        )
+    }
+
+    /** [mapSongs] against name lookups the caller already holds, for a caller mapping two orderings
+     * of the same songs (see [albumsQueuePairFor]) that would otherwise re-read both tables twice. */
+    private fun mapSongs(
+        songs: List<SongEntity>,
+        albumNamesById: Map<Long, String>,
+        artistNamesById: Map<Long, String>,
+    ): List<MediaItem> = songs.map { song ->
+        mediaItemMapper.toMediaItem(
+            song = song,
+            albumName = albumNamesById[song.albumId].orEmpty(),
+            artistName = artistNamesById[song.artistId].orEmpty(),
+        )
     }
 
     /** Resolves a persisted ordered list of song ids (see [QueueStateStore]) back into
@@ -584,8 +632,15 @@ class LibraryBrowseTree @Inject constructor(
 
     private companion object {
         const val MAX_ROOT_TABS = 4
+
+        /** Both axes unshuffled: album order, track order within each. */
+        val NATURAL_ALBUM_SETTINGS = ShuffleSettings(grouping = Grouping.ALBUM)
     }
 }
+
+/** A queue in both the orderings a shuffle toggle moves between: [shuffled] is what plays now,
+ * [natural] is what switching shuffle back off restores. */
+data class QueuePair(val shuffled: List<MediaItem>, val natural: List<MediaItem>)
 
 // Internal grouping/lookup sentinel for an album with no year tag -- not user-facing here (see
 // matchingSongsForDecade's use of it as a plain comparison key); MediaItemMapper.toDecadeItem

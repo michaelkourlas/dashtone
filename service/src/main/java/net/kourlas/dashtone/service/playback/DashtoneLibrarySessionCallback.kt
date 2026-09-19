@@ -184,134 +184,114 @@ class DashtoneLibrarySessionCallback(
         MediaSession.MediaItemsWithStartPosition(resolved, resolvedStartIndex, startPositionMs)
     }
 
+    /** A queue a browse-tree sentinel expands into, with everything a later shuffle toggle needs
+     * to restore it: [natural] is what switching shuffle off falls back to, and [grouping] is the
+     * category structure a double-tap skip jumps between (null where there is none). */
+    private class SentinelQueue(
+        val items: List<MediaItem>,
+        val natural: List<MediaItem>,
+        val grouping: Grouping?,
+        val isShuffled: Boolean,
+    )
+
+    /** A sentinel describes a whole queue on its own, so it is always the entire request -- a host
+     * plays one browse-tree row at a time. Treating it that way, rather than accumulating across
+     * the list, is what keeps the recorded shuffle state describing the queue that was actually
+     * built: the previous shape appended each item's queue while letting the last one overwrite
+     * the shuffle bookkeeping, so a list mixing a sentinel with ordinary items would have played
+     * everything while remembering only the final entry.
+     *
+     * Anything else is resolved per item, which is the ordinary browsing path. */
     private suspend fun resolveQueue(mediaItems: List<MediaItem>): List<MediaItem> {
-        val resolved = mutableListOf<MediaItem>()
-        var shufflePreset: ShuffleSettings? = null
-        // Non-null for a root "Play All X" queue or a scoped "Play Albums" queue (see
-        // MediaItemMapper.playAlbumsItem) -- see QueueShuffleState.setNatural's doc comment for
-        // why that's the case that still needs a grouping recorded despite being unshuffled.
-        var playAllGrouping: Grouping? = null
-        // Set only by a scoped "Shuffle Albums"/"Shuffle Songs" tap (LibraryBrowseTree.
-        // albumsQueueFor/songsQueueFor) -- the natural-order fallback the live shuffle toggle
-        // needs, mirroring what shufflePreset's branch below does for a root shuffle preset. A
-        // scoped shuffle has no ShuffleSettings of its own naturalOrderFor could regenerate this
-        // from (it's an ad-hoc song subset, not a library-wide grouping), so it's computed directly
-        // alongside the shuffled queue instead.
-        var scopedShuffleNatural: List<MediaItem>? = null
-        var scopedShuffleGrouping: Grouping? = null
-        for (item in mediaItems) {
-            val playAlbumsParent = MediaIds.playAlbumsParentOrNull(item.mediaId)
-            if (playAlbumsParent != null) {
-                resolved += browseTree.albumsQueueFor(playAlbumsParent, shuffled = false).orEmpty()
-                playAllGrouping = Grouping.ALBUM
-                continue
+        val sentinel = mediaItems.singleOrNull()?.let { resolveSentinel(it) }
+        if (sentinel != null) {
+            if (sentinel.isShuffled) {
+                queueShuffleState.setShuffled(sentinel.natural, sentinel.grouping)
+            } else {
+                queueShuffleState.setNatural(sentinel.items, sentinel.grouping)
             }
-            val shuffleAlbumsParent = MediaIds.shuffleAlbumsParentOrNull(item.mediaId)
-            if (shuffleAlbumsParent != null) {
-                resolved += browseTree.albumsQueueFor(shuffleAlbumsParent, shuffled = true).orEmpty()
-                scopedShuffleNatural = browseTree.albumsQueueFor(shuffleAlbumsParent, shuffled = false).orEmpty()
-                scopedShuffleGrouping = Grouping.ALBUM
-                continue
-            }
-            val playSongsParent = MediaIds.playSongsParentOrNull(item.mediaId)
-            if (playSongsParent != null) {
-                resolved += browseTree.songsQueueFor(playSongsParent, shuffled = false).orEmpty()
-                continue
-            }
-            val shuffleSongsParent = MediaIds.shuffleSongsParentOrNull(item.mediaId)
-            if (shuffleSongsParent != null) {
-                resolved += browseTree.songsQueueFor(shuffleSongsParent, shuffled = true).orEmpty()
-                scopedShuffleNatural = browseTree.songsQueueFor(shuffleSongsParent, shuffled = false).orEmpty()
-                continue
-            }
-            when (item.mediaId) {
-                MediaIds.SHUFFLE_ALL -> {
-                    resolved += queueMediaItems(ShufflePresets.SHUFFLE_ALL)
-                    shufflePreset = ShufflePresets.SHUFFLE_ALL
-                }
-                MediaIds.SHUFFLE_ALBUMS -> {
-                    val (items, settings) = categoryShuffleQueue(Grouping.ALBUM)
-                    resolved += items
-                    shufflePreset = settings
-                }
-                MediaIds.SHUFFLE_ARTISTS -> {
-                    val (items, settings) = categoryShuffleQueue(Grouping.ARTIST)
-                    resolved += items
-                    shufflePreset = settings
-                }
-                MediaIds.SHUFFLE_GENRES -> {
-                    val (items, settings) = categoryShuffleQueue(Grouping.GENRE)
-                    resolved += items
-                    shufflePreset = settings
-                }
-                MediaIds.SHUFFLE_ALBUM_ARTISTS -> {
-                    val (items, settings) = categoryShuffleQueue(Grouping.ALBUM_ARTIST)
-                    resolved += items
-                    shufflePreset = settings
-                }
-                MediaIds.SHUFFLE_COMPOSERS -> {
-                    val (items, settings) = categoryShuffleQueue(Grouping.COMPOSER)
-                    resolved += items
-                    shufflePreset = settings
-                }
-                MediaIds.PLAY_ALL_SONGS -> resolved += playAllQueue(grouping = null)
-                MediaIds.PLAY_ALL_ALBUMS -> {
-                    resolved += playAllQueue(Grouping.ALBUM)
-                    playAllGrouping = Grouping.ALBUM
-                }
-                MediaIds.PLAY_ALL_ARTISTS -> {
-                    resolved += playAllQueue(Grouping.ARTIST)
-                    playAllGrouping = Grouping.ARTIST
-                }
-                MediaIds.PLAY_ALL_GENRES -> {
-                    resolved += playAllQueue(Grouping.GENRE)
-                    playAllGrouping = Grouping.GENRE
-                }
-                MediaIds.PLAY_ALL_ALBUM_ARTISTS -> {
-                    resolved += playAllQueue(Grouping.ALBUM_ARTIST)
-                    playAllGrouping = Grouping.ALBUM_ARTIST
-                }
-                MediaIds.PLAY_ALL_COMPOSERS -> {
-                    resolved += playAllQueue(Grouping.COMPOSER)
-                    playAllGrouping = Grouping.COMPOSER
-                }
-                else -> resolved += resolveItem(item)
-            }
+            return sentinel.items
         }
-        // Tracks the natural (unshuffled) order of whatever queue just got established, so a
-        // later live shuffle toggle (QueueShufflePlayer) has a correct fallback: a shuffle-preset
-        // queue's fallback is the equivalent unshuffled ordering, not the preset's own shuffled
-        // list; a scoped shuffle's fallback is the natural ordering computed alongside it above;
-        // any other queue (album/playlist/song browsing, "Play All X"/"Play Albums"/"Play Songs",
-        // already unshuffled) is its own fallback.
-        val preset = shufflePreset
-        when {
-            preset != null -> {
-                val grouping = preset.grouping.takeUnless { preset.shuffleAll }
-                queueShuffleState.setShuffled(browseTree.mapSongs(shuffleController.naturalOrderFor(preset)), grouping)
-            }
-            scopedShuffleNatural != null -> queueShuffleState.setShuffled(scopedShuffleNatural, scopedShuffleGrouping)
-            else -> queueShuffleState.setNatural(resolved, playAllGrouping)
-        }
+        // Sentinels are still expanded here, since one reaching the player carries no URI and
+        // crashes ExoPlayer's media source factory (see onAddMediaItems). What a list like this
+        // cannot have is a single coherent shuffle state, so it records none: a mixed queue has no
+        // one natural ordering or grouping to describe it.
+        val resolved = mediaItems.flatMap { resolveSentinel(it)?.items ?: resolveItem(it) }
+        queueShuffleState.setNatural(resolved, null)
         return resolved
     }
+
+    /** The queue behind a "Play All X"/"Shuffle X"/"Play Albums"/"Shuffle Songs" row, or null when
+     * [item] is an ordinary browsable entry. */
+    private suspend fun resolveSentinel(item: MediaItem): SentinelQueue? {
+        MediaIds.playAlbumsParentOrNull(item.mediaId)?.let { parent ->
+            val items = browseTree.albumsQueueFor(parent, shuffled = false).orEmpty()
+            // Unshuffled, but with real category structure a double-tap should skip across -- see
+            // QueueShuffleState.setNatural's doc comment.
+            return SentinelQueue(items, items, Grouping.ALBUM, isShuffled = false)
+        }
+        MediaIds.shuffleAlbumsParentOrNull(item.mediaId)?.let { parent ->
+            // A scoped shuffle is an ad-hoc song subset with no ShuffleSettings naturalOrderFor
+            // could regenerate, so both orderings come from one call.
+            val pair = browseTree.albumsQueuePairFor(parent)
+            return SentinelQueue(pair?.shuffled.orEmpty(), pair?.natural.orEmpty(), Grouping.ALBUM, isShuffled = true)
+        }
+        MediaIds.playSongsParentOrNull(item.mediaId)?.let { parent ->
+            val items = browseTree.songsQueueFor(parent, shuffled = false).orEmpty()
+            return SentinelQueue(items, items, grouping = null, isShuffled = false)
+        }
+        MediaIds.shuffleSongsParentOrNull(item.mediaId)?.let { parent ->
+            val pair = browseTree.songsQueuePairFor(parent)
+            return SentinelQueue(pair?.shuffled.orEmpty(), pair?.natural.orEmpty(), grouping = null, isShuffled = true)
+        }
+        return when (item.mediaId) {
+            MediaIds.SHUFFLE_ALL -> presetQueue(ShufflePresets.SHUFFLE_ALL)
+            MediaIds.SHUFFLE_ALBUMS -> categoryShuffleQueue(Grouping.ALBUM)
+            MediaIds.SHUFFLE_ARTISTS -> categoryShuffleQueue(Grouping.ARTIST)
+            MediaIds.SHUFFLE_GENRES -> categoryShuffleQueue(Grouping.GENRE)
+            MediaIds.SHUFFLE_ALBUM_ARTISTS -> categoryShuffleQueue(Grouping.ALBUM_ARTIST)
+            MediaIds.SHUFFLE_COMPOSERS -> categoryShuffleQueue(Grouping.COMPOSER)
+            MediaIds.PLAY_ALL_SONGS -> playAllQueue(grouping = null)
+            MediaIds.PLAY_ALL_ALBUMS -> playAllQueue(Grouping.ALBUM)
+            MediaIds.PLAY_ALL_ARTISTS -> playAllQueue(Grouping.ARTIST)
+            MediaIds.PLAY_ALL_GENRES -> playAllQueue(Grouping.GENRE)
+            MediaIds.PLAY_ALL_ALBUM_ARTISTS -> playAllQueue(Grouping.ALBUM_ARTIST)
+            MediaIds.PLAY_ALL_COMPOSERS -> playAllQueue(Grouping.COMPOSER)
+            else -> null
+        }
+    }
+
+    /** A library-wide shuffle preset. Its natural-order fallback is regenerated from the same
+     * [ShuffleSettings] rather than kept alongside, which a scoped shuffle cannot do. */
+    private suspend fun presetQueue(settings: ShuffleSettings): SentinelQueue = SentinelQueue(
+        items = queueMediaItems(settings),
+        natural = browseTree.mapSongs(shuffleController.naturalOrderFor(settings)),
+        grouping = settings.grouping.takeUnless { settings.shuffleAll },
+        isShuffled = true,
+    )
 
     // "Shuffle Albums"/"Shuffle Artists"/etc.: grouping is fixed by which entry was tapped, but
     // which axis actually gets randomized comes from the user's CategoryShuffleMode setting (see
     // ShuffleController.applyCategoryShuffle). Returning the resolved ShuffleSettings alongside the
     // mapped items lets the caller reuse the exact same downstream natural-order-fallback logic a
     // hardcoded preset would have used, without needing to know which mode was actually in effect.
-    private suspend fun categoryShuffleQueue(grouping: Grouping): Pair<List<MediaItem>, ShuffleSettings> {
+    private suspend fun categoryShuffleQueue(grouping: Grouping): SentinelQueue {
         val queue = shuffleController.applyCategoryShuffle(grouping)
-        return browseTree.mapSongs(queue.songs) to queue.settings
+        return SentinelQueue(
+            items = browseTree.mapSongs(queue.songs),
+            natural = browseTree.mapSongs(shuffleController.naturalOrderFor(queue.settings)),
+            grouping = queue.settings.grouping.takeUnless { queue.settings.shuffleAll },
+            isShuffled = true,
+        )
     }
 
     // "Play All X": both axes explicitly unshuffled, regardless of the CategoryShuffleMode
     // setting (that setting only governs what the SHUFFLE_* entries do). [grouping] null means
     // "Play All Songs" -- a flat list with no category structure, same as ShuffleSettings.shuffleAll.
-    private suspend fun playAllQueue(grouping: Grouping?): List<MediaItem> {
+    private suspend fun playAllQueue(grouping: Grouping?): SentinelQueue {
         val settings = if (grouping == null) ShuffleSettings(shuffleAll = true) else ShuffleSettings(grouping = grouping)
-        return browseTree.mapSongs(shuffleController.naturalOrderFor(settings))
+        val items = browseTree.mapSongs(shuffleController.naturalOrderFor(settings))
+        return SentinelQueue(items, items, grouping, isShuffled = false)
     }
 
     // Expanding to the containing list (rather than just the tapped song) means skip-previous/
