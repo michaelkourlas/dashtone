@@ -107,6 +107,49 @@ class MediaStoreLibraryScannerTest {
             assertTrue(artistDao.current.isEmpty())
         }
 
+    // Retagging keeps a song's MediaStore id, so this scan deletes no songs at all -- orphan
+    // cleanup has to run anyway or the vacated album lingers forever as an empty entry in the
+    // Albums list. The clock stays inside the startup grace period to show the cleanup is
+    // independent of the song-deletion path it used to be gated behind.
+    @Test
+    fun `retagging a song onto another album removes the album it left behind`() = runTest {
+        source.rows = listOf(
+            rawAudioRow(id = 1, title = "Song A", artistId = 10, artistName = "Artist X", albumId = 100, albumName = "Album 1", rawTrack = 1),
+        )
+        scanner.scanLibrary()
+        assertTrue(albumDao.current.containsKey(100))
+
+        source.rows = listOf(
+            rawAudioRow(id = 1, title = "Song A", artistId = 10, artistName = "Artist X", albumId = 200, albumName = "Album 2", rawTrack = 1),
+        )
+        scanner.scanLibrary()
+
+        assertTrue("the song itself survives a retag", songDao.current.containsKey(1))
+        assertEquals(200L, songDao.current.getValue(1).albumId)
+        assertTrue("the new album is present", albumDao.current.containsKey(200))
+        assertFalse("the vacated album is cleaned up", albumDao.current.containsKey(100))
+    }
+
+    // An artist left with no songs goes the same way as an orphaned album, and is cleaned up after
+    // albums so an album row is gone before the artist it points at is considered.
+    @Test
+    fun `retagging a song onto another artist removes the artist it left behind`() = runTest {
+        source.rows = listOf(
+            rawAudioRow(id = 1, title = "Song A", artistId = 10, artistName = "Artist X", albumId = 100, albumName = "Album 1", rawTrack = 1),
+        )
+        scanner.scanLibrary()
+        assertTrue(artistDao.current.containsKey(10))
+
+        source.rows = listOf(
+            rawAudioRow(id = 1, title = "Song A", artistId = 20, artistName = "Artist Y", albumId = 100, albumName = "Album 1", rawTrack = 1),
+        )
+        scanner.scanLibrary()
+
+        assertTrue("the song itself survives a retag", songDao.current.containsKey(1))
+        assertTrue("the new artist is present", artistDao.current.containsKey(20))
+        assertFalse("the vacated artist is cleaned up", artistDao.current.containsKey(10))
+    }
+
     // force = true is for an explicit, deliberate user action (the "Rescan Library" button, a
     // just-granted permission, a folder-inclusion change) -- it must delete immediately regardless
     // of how recently the scanner was created, unlike every other test in this class, which never

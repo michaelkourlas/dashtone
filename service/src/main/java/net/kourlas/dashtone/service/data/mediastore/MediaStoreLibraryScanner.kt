@@ -117,9 +117,16 @@ class MediaStoreLibraryScanner @Inject constructor(
             val confirmedMissing = if (force || now >= deadline) missingThisScan else emptySet()
             if (confirmedMissing.isNotEmpty()) {
                 songDao.deleteByIds(confirmedMissing.toList())
-                albumDao.deleteOrphans()
-                artistDao.deleteOrphans()
             }
+
+            // Orphan cleanup runs on every scan, since a song can stop referencing an album or
+            // artist while remaining in the library itself: retagging one onto a different album
+            // keeps its MediaStore id, so the upsert above simply repoints it and the deletion
+            // above finds nothing missing, yet the album it left behind now has no songs at all.
+            // Albums are cleaned before artists so an album row is gone before the artist it
+            // points at is considered.
+            albumDao.deleteOrphans()
+            artistDao.deleteOrphans()
 
             // Built from this same scan pass (not a DB read) so paths and the songs they resolve
             // to are always consistent, even mid-scan.
