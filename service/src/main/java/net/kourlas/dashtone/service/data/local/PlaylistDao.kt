@@ -28,6 +28,16 @@ interface PlaylistDao {
     @Query("SELECT id FROM playlists")
     suspend fun getAllIds(): List<Long>
 
+    /** Every playlist row, so a scan can compare stored [PlaylistEntity.dateModified] against what
+     * is on disk before deciding whether to re-read the file. */
+    @Query("SELECT * FROM playlists")
+    suspend fun getAll(): List<PlaylistEntity>
+
+    /** Playlists that already have resolved entries. A playlist whose file could not be read comes
+     * out of a scan with none, and re-reading it is the only way it ever gets any. */
+    @Query("SELECT DISTINCT playlistId FROM playlist_entries")
+    suspend fun idsWithEntries(): List<Long>
+
     @Query("SELECT COUNT(*) FROM playlists")
     suspend fun count(): Int
 

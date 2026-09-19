@@ -133,7 +133,13 @@ class MediaStoreLibraryScanner @Inject constructor(
             val pathToSongId = rows.mapNotNull { row ->
                 row.filePath?.let { M3uParser.normalizePath(it) to row.id }
             }.toMap()
-            playlistScanner.scanPlaylists(pathToSongId, force)
+            // Counts songs that actually left the library, rather than every song this scan
+            // happened to miss: during the startup grace period a missing song stays put, and its
+            // playlist entries should stay put with it. See PlaylistScanner.scanPlaylists for what
+            // this decides.
+            val librarySongsChanged =
+                confirmedMissing.isNotEmpty() || incomingSongIds.any { it !in existingSongIds }
+            playlistScanner.scanPlaylists(pathToSongId, force, librarySongsChanged)
         }
     }
 

@@ -63,6 +63,92 @@ class MediaStorePlaylistScannerTest {
         assertEquals(listOf(1L), playlistDao.currentEntries.getValue(1).map { it.songId })
     }
 
+    // Re-reading and re-resolving every entry of every playlist is the expensive half of a scan,
+    // and LibraryChangeObserver triggers one for any file-system activity at all. A playlist is a
+    // copy of its file, so an unchanged file means unchanged entries.
+    @Test
+    fun `an unchanged playlist file is left alone when the library's songs are unchanged`() = runTest {
+        seedOnePlaylist()
+        source.reads.clear()
+
+        scanner.scanPlaylists(pathToSongId, librarySongsChanged = false)
+
+        assertEquals(emptyList<String>(), source.reads)
+        assertEquals(listOf(1L), playlistDao.currentEntries.getValue(1).map { it.songId })
+    }
+
+    // The case a plain timestamp check would get wrong: the file never moved, but an entry that
+    // resolved to nothing before -- its song not yet indexed by MediaStore -- resolves now.
+    @Test
+    fun `an unchanged playlist file is re-read when the library gained songs`() = runTest {
+        val file = rawPlaylistFile(id = 1, name = "Road Trip", filePath = "/storage/emulated/0/Playlists/Road Trip.m3u")
+        source.files = listOf(file)
+        source.textByContentUri = mapOf(
+            file.contentUri to "/storage/emulated/0/Music/A.mp3\n/storage/emulated/0/Music/B.mp3",
+        )
+        scanner.scanPlaylists(mapOf("/storage/emulated/0/Music/A.mp3" to 1L))
+        assertEquals("B.mp3 has no song yet", listOf(1L), playlistDao.currentEntries.getValue(1).map { it.songId })
+        source.reads.clear()
+
+        val bothSongs = mapOf("/storage/emulated/0/Music/A.mp3" to 1L, "/storage/emulated/0/Music/B.mp3" to 2L)
+        scanner.scanPlaylists(bothSongs, librarySongsChanged = true)
+
+        assertEquals(listOf(file.contentUri), source.reads)
+        assertEquals(listOf(1L, 2L), playlistDao.currentEntries.getValue(1).sortedBy { it.position }.map { it.songId })
+    }
+
+    @Test
+    fun `a playlist file that changed on disk is re-read even when the library's songs are unchanged`() = runTest {
+        seedOnePlaylist()
+        source.reads.clear()
+        val edited = rawPlaylistFile(
+            id = 1, name = "Road Trip", filePath = "/storage/emulated/0/Playlists/Road Trip.m3u", dateModified = 99,
+        )
+        source.files = listOf(edited)
+
+        scanner.scanPlaylists(pathToSongId, librarySongsChanged = false)
+
+        assertEquals(listOf(edited.contentUri), source.reads)
+    }
+
+    @Test
+    fun `a forced scan re-reads every playlist file`() = runTest {
+        seedOnePlaylist()
+        source.reads.clear()
+
+        scanner.scanPlaylists(pathToSongId, force = true, librarySongsChanged = false)
+
+        assertEquals(1, source.reads.size)
+    }
+
+    // A playlist whose file could not be read comes out of a scan with no entries. Its row still
+    // records the file's timestamp, so a timestamp check alone would skip it from then on and it
+    // would never get entries at all.
+    @Test
+    fun `a playlist left with no entries is re-read even when nothing changed`() = runTest {
+        val file = rawPlaylistFile(id = 1, name = "Road Trip", filePath = "/storage/emulated/0/Playlists/Road Trip.m3u")
+        source.files = listOf(file)
+        source.textByContentUri = emptyMap()
+        scanner.scanPlaylists(pathToSongId)
+        assertTrue(playlistDao.currentEntries[1].isNullOrEmpty())
+        source.reads.clear()
+
+        source.textByContentUri = mapOf(file.contentUri to "/storage/emulated/0/Music/A.mp3")
+        scanner.scanPlaylists(pathToSongId, librarySongsChanged = false)
+
+        assertEquals(listOf(file.contentUri), source.reads)
+        assertEquals(listOf(1L), playlistDao.currentEntries.getValue(1).map { it.songId })
+    }
+
+    private val pathToSongId = mapOf("/storage/emulated/0/Music/A.mp3" to 1L)
+
+    private suspend fun seedOnePlaylist() {
+        val file = rawPlaylistFile(id = 1, name = "Road Trip", filePath = "/storage/emulated/0/Playlists/Road Trip.m3u")
+        source.files = listOf(file)
+        source.textByContentUri = mapOf(file.contentUri to "/storage/emulated/0/Music/A.mp3")
+        scanner.scanPlaylists(pathToSongId)
+    }
+
     @Test
     fun `rescanning removes a playlist whose backing file is gone once the startup grace period has passed`() = runTest {
         val file = rawPlaylistFile(id = 1, name = "Road Trip", filePath = "/storage/emulated/0/Playlists/Road Trip.m3u")

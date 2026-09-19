@@ -269,6 +269,61 @@ class MediaStoreLibraryScannerTest {
         assertEquals(mapOf("/storage/emulated/0/Music/Song A.mp3" to 1L), playlistScanner.lastPathToSongId)
     }
 
+    // The playlist scanner leaves an unchanged file alone unless the songs its entries could
+    // resolve to are different now -- see PlaylistScanner.scanPlaylists.
+    @Test
+    fun `the playlist scanner is told the library gained songs`() = runTest {
+        source.rows = listOf(
+            rawAudioRow(id = 1, title = "Song A", artistId = 10, artistName = "Artist X", albumId = 100, albumName = "Album 1"),
+        )
+
+        scanner.scanLibrary()
+
+        assertEquals(true, playlistScanner.lastLibrarySongsChanged)
+    }
+
+    @Test
+    fun `the playlist scanner is told nothing changed when a rescan finds the same songs`() = runTest {
+        source.rows = listOf(
+            rawAudioRow(id = 1, title = "Song A", artistId = 10, artistName = "Artist X", albumId = 100, albumName = "Album 1"),
+        )
+        scanner.scanLibrary()
+
+        scanner.scanLibrary()
+
+        assertEquals(false, playlistScanner.lastLibrarySongsChanged)
+    }
+
+    // A song the scan missed during the startup grace period is not deleted, so its playlist
+    // entries should stay put too -- this reports what left the library, not what a scan missed.
+    @Test
+    fun `a song missing only during the startup grace period does not count as a library change`() = runTest {
+        source.rows = listOf(
+            rawAudioRow(id = 1, title = "Song A", artistId = 10, artistName = "Artist X", albumId = 100, albumName = "Album 1"),
+        )
+        scanner.scanLibrary()
+
+        source.rows = emptyList()
+        scanner.scanLibrary()
+
+        assertEquals(false, playlistScanner.lastLibrarySongsChanged)
+        assertTrue("the song itself is still there", songDao.current.containsKey(1))
+    }
+
+    @Test
+    fun `a song that actually leaves the library counts as a library change`() = runTest {
+        source.rows = listOf(
+            rawAudioRow(id = 1, title = "Song A", artistId = 10, artistName = "Artist X", albumId = 100, albumName = "Album 1"),
+        )
+        scanner.scanLibrary()
+
+        source.rows = emptyList()
+        fakeClockMs += STARTUP_GRACE_PERIOD_MS
+        scanner.scanLibrary()
+
+        assertEquals(true, playlistScanner.lastLibrarySongsChanged)
+    }
+
     @Test
     fun `songs in an excluded top-level folder are left out of the scan`() = runTest {
         appPreferences.setExcludedFolders(setOf("external_primary/Podcasts"))
