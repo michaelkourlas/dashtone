@@ -9,7 +9,7 @@
 captures/
 build/
 release/
-testing/
+/testing/
 local.properties
 
 # Local test music library (not part of the repo)
