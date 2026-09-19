@@ -9,6 +9,7 @@ import net.kourlas.dashtone.service.data.mediastore.LibraryFolder
 import net.kourlas.dashtone.service.data.mediastore.LibraryScanner
 import net.kourlas.dashtone.service.data.prefs.AppPreferences
 import net.kourlas.dashtone.service.data.repository.LibraryRepository
+import net.kourlas.dashtone.service.testing.FakeAlbumArtInvalidator
 import net.kourlas.dashtone.service.testing.FakeAlbumDao
 import net.kourlas.dashtone.service.testing.FakeArtistDao
 import net.kourlas.dashtone.service.testing.FakeDataStore
@@ -43,7 +44,7 @@ class ShuffleControllerTest {
         val preferences = AppPreferences(FakeDataStore(emptyPreferences()))
         val playlistDao = FakePlaylistDao(songDao)
         repository = LibraryRepository(
-            songDao, albumDao, artistDao, playlistDao, NoOpLibraryScanner(), preferences,
+            songDao, albumDao, artistDao, playlistDao, NoOpLibraryScanner(), preferences, FakeAlbumArtInvalidator(),
         )
         controller = ShuffleController(repository)
     }

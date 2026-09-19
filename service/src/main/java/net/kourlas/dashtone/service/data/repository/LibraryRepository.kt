@@ -2,6 +2,7 @@ package net.kourlas.dashtone.service.data.repository
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import net.kourlas.dashtone.service.albumart.AlbumArtInvalidator
 import net.kourlas.dashtone.service.data.local.AlbumDao
 import net.kourlas.dashtone.service.data.local.AlbumEntity
 import net.kourlas.dashtone.service.data.local.ArtistDao
@@ -27,6 +28,7 @@ class LibraryRepository @Inject constructor(
     private val playlistDao: PlaylistDao,
     private val scanner: LibraryScanner,
     private val preferences: AppPreferences,
+    private val albumArtCache: AlbumArtInvalidator,
 ) {
     val songs: Flow<List<SongEntity>> = songDao.observeAll()
     val albums: Flow<List<AlbumEntity>> = albumDao.observeAll()
@@ -74,6 +76,12 @@ class LibraryRepository @Inject constructor(
      * reflect the file system right now, not eventually. */
     suspend fun rescan(force: Boolean = false) {
         scanner.scanLibrary(force)
+        // A forced scan is the user saying "sync to what's on disk right now," which is also the
+        // one moment worth re-reading artwork: album art is cached by album id, and re-tagging a
+        // file keeps that id, so a replaced cover is invisible until the cache drops it. An
+        // automatic scan leaves the cache alone -- LibraryChangeObserver fires often enough that
+        // clearing there would mean re-extracting every cover for routine file-system noise.
+        if (force) albumArtCache.clear()
         preferences.setLastScanTimestampMillis(System.currentTimeMillis())
         preferences.setHasCompletedFirstRun(true)
     }

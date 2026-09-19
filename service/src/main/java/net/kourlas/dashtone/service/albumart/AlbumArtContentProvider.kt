@@ -47,13 +47,18 @@ class AlbumArtContentProvider : ContentProvider() {
 
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor? {
         val albumId = AlbumArtUris.albumIdOrNull(uri) ?: return null
-        val file = cache.file(albumId)
-        if (!file.exists()) {
+        val cached = cache.file(albumId)
+        // Extraction happens once per album and the result is published through the cache, which
+        // makes the write atomic -- see AlbumArtCache.write for why that matters when a host
+        // requests a whole grid of art at once.
+        val file = if (cached.exists()) {
+            cached
+        } else {
             val bytes = runBlocking {
                 val song = songDao.getAnyForAlbum(albumId) ?: return@runBlocking null
                 extractor.extract(albumId, song.contentUri.toUri())
             } ?: return null
-            file.writeBytes(bytes)
+            cache.write(albumId, bytes) ?: return null
         }
         return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
     }

@@ -6,6 +6,7 @@ import net.kourlas.dashtone.service.data.local.SongEntity
 import net.kourlas.dashtone.service.data.mediastore.LibraryFolder
 import net.kourlas.dashtone.service.data.mediastore.LibraryScanner
 import net.kourlas.dashtone.service.data.prefs.AppPreferences
+import net.kourlas.dashtone.service.testing.FakeAlbumArtInvalidator
 import net.kourlas.dashtone.service.testing.FakeAlbumDao
 import net.kourlas.dashtone.service.testing.FakeArtistDao
 import net.kourlas.dashtone.service.testing.FakeDataStore
@@ -56,6 +57,7 @@ class LibraryRepositoryTest {
     private lateinit var playlistDao: FakePlaylistDao
     private lateinit var scanner: FakeLibraryScanner
     private lateinit var preferences: AppPreferences
+    private lateinit var albumArtInvalidator: FakeAlbumArtInvalidator
     private lateinit var repository: LibraryRepository
 
     @Before
@@ -66,9 +68,30 @@ class LibraryRepositoryTest {
         playlistDao = FakePlaylistDao(songDao)
         scanner = FakeLibraryScanner(songDao)
         preferences = AppPreferences(FakeDataStore(emptyPreferences()))
+        albumArtInvalidator = FakeAlbumArtInvalidator()
         repository = LibraryRepository(
-            songDao, albumDao, artistDao, playlistDao, scanner, preferences,
+            songDao, albumDao, artistDao, playlistDao, scanner, preferences, albumArtInvalidator,
         )
+    }
+
+    // Album art is cached by album id, which a re-tag preserves, so a replaced cover stays hidden
+    // until the cache is dropped. A forced scan is the deliberate user action ("Rescan Library", a
+    // just-granted permission, a folder-inclusion change) worth paying that re-extraction for.
+    @Test
+    fun `a forced rescan drops the album art cache`() = runTest {
+        repository.rescan(force = true)
+
+        assertEquals(1, albumArtInvalidator.clearCount)
+    }
+
+    // LibraryChangeObserver fires on routine file-system noise, so an automatic catch-up scan
+    // leaving the cache alone is what keeps that from re-extracting every cover in the library.
+    @Test
+    fun `an automatic rescan leaves the album art cache alone`() = runTest {
+        repository.rescan()
+        repository.ensureScanned()
+
+        assertEquals(0, albumArtInvalidator.clearCount)
     }
 
     @Test
