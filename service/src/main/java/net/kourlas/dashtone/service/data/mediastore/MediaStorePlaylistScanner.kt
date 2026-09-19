@@ -1,6 +1,8 @@
 package net.kourlas.dashtone.service.data.mediastore
 
 import android.os.SystemClock
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import net.kourlas.dashtone.service.data.local.PlaylistDao
 import net.kourlas.dashtone.service.data.local.PlaylistEntity
 import net.kourlas.dashtone.service.data.local.PlaylistEntryEntity
@@ -24,7 +26,7 @@ class MediaStorePlaylistScanner @Inject constructor(
     // immediately, exactly as before this fix existed.
     private var startupGraceDeadlineMs: Long? = null
 
-    override suspend fun scanPlaylists(pathToSongId: Map<String, Long>, force: Boolean) {
+    override suspend fun scanPlaylists(pathToSongId: Map<String, Long>, force: Boolean): Unit = withContext(Dispatchers.IO) {
         val files = playlistSource.queryAllPlaylistFiles()
         val existingIds = playlistDao.getAllIds().toHashSet()
 

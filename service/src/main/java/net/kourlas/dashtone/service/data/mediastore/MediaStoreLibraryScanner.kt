@@ -1,9 +1,11 @@
 package net.kourlas.dashtone.service.data.mediastore
 
 import android.os.SystemClock
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import net.kourlas.dashtone.service.data.local.AlbumDao
 import net.kourlas.dashtone.service.data.local.AlbumEntity
 import net.kourlas.dashtone.service.data.local.ArtistDao
@@ -53,7 +55,7 @@ class MediaStoreLibraryScanner @Inject constructor(
     // the user's own confirmation that now is the right time to sync.
     private var startupGraceDeadlineMs: Long? = null
 
-    override suspend fun scanLibrary(force: Boolean) {
+    override suspend fun scanLibrary(force: Boolean): Unit = withContext(Dispatchers.IO) {
         scanMutex.withLock {
             val excludedFolders = appPreferences.excludedFolders.first()
             val rows = audioSource.queryAllAudio()
@@ -128,7 +130,7 @@ class MediaStoreLibraryScanner @Inject constructor(
         }
     }
 
-    override suspend fun availableFolders(): List<LibraryFolder> =
+    override suspend fun availableFolders(): List<LibraryFolder> = withContext(Dispatchers.IO) {
         audioSource.queryAllAudio()
             .mapNotNull { row ->
                 val topLevel = topLevelFolderOf(row.relativePath) ?: return@mapNotNull null
@@ -138,6 +140,7 @@ class MediaStoreLibraryScanner @Inject constructor(
             }
             .distinctBy { it.key }
             .sortedWith(compareBy({ it.volumeName }, { it.topLevelFolder }))
+    }
 
     internal companion object {
         // Comfortably longer than the ~75ms observed between rescans within a single connection
