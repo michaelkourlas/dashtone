@@ -88,54 +88,108 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
 }
 
-// The About screen's markdown viewer reads these straight from assets rather than duplicating
-// their content in source -- copied fresh from the repo root on every build so they can never
-// drift out of sync with the real docs.
-tasks.register<Delete>("cleanAssets") {
-    delete("src/main/assets")
+/**
+ * Produces every generated asset for one variant, into a directory of its own.
+ *
+ * The About screen's markdown viewer reads the repo's own documents straight from assets rather
+ * than duplicating their content in source, so they are copied fresh on every build and can never
+ * drift out of sync. PACKAGE_LICENSES.md alongside them turns net.kourlas.oss-licenses-plugin's
+ * per-variant dependency scan into the list the "Third-party package licenses" entry displays --
+ * see licenses/packageLicenseParser.py, which fails loudly on any license it doesn't recognize
+ * rather than silently shipping an incomplete attribution list.
+ *
+ * One task for both jobs, with the directory as its single declared output, is what lets Gradle
+ * track them: two tasks writing into one directory have no ordering between them, and the earlier
+ * arrangement additionally had a Delete task wiping that directory out from under both.
+ */
+abstract class GenerateDocAssets : DefaultTask() {
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.NAME_ONLY)
+    abstract val docs: ConfigurableFileCollection
+
+    /** The dependency scan this variant's license list is built from. */
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val licenseReport: RegularFileProperty
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val parserScript: RegularFileProperty
+
+    /** The full license texts the parser splices in, keyed by name. */
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val licenseTexts: ConfigurableFileCollection
+
+    @get:Input
+    abstract val variantName: Property<String>
+
+    @get:Input
+    abstract val pythonExecutable: Property<String>
+
+    /** The parser resolves the dependency scan relative to the app project. */
+    @get:Internal
+    abstract val workingDirectory: DirectoryProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @get:Inject
+    abstract val files: FileSystemOperations
+
+    @get:Inject
+    abstract val processes: ExecOperations
+
+    @TaskAction
+    fun generate() {
+        val destination = outputDir.get().asFile
+        files.sync {
+            from(docs)
+            into(destination)
+        }
+        processes.exec {
+            workingDir = workingDirectory.get().asFile
+            commandLine(
+                pythonExecutable.get(),
+                parserScript.get().asFile.absolutePath,
+                variantName.get(),
+                destination.resolve("PACKAGE_LICENSES.md").absolutePath,
+            )
+        }
+    }
 }
 
-tasks.register<Copy>("copyToAssets") {
-    from("../PRIVACY.md")
-    from("../CHANGES.md")
-    from("../NOTICE")
-    from("../LICENSE.md")
-    from("../HELP.md")
-    into("src/main/assets")
-}
+// Override with -Pdashtone.python=python3 where the interpreter goes by that name.
+val pythonInterpreter = providers.gradleProperty("dashtone.python").orElse("python")
 
-tasks.getByName("preBuild") {
-    dependsOn("copyToAssets")
-}
-
-tasks.getByName("copyToAssets") {
-    dependsOn("cleanAssets")
-}
-
-// Turns net.kourlas.oss-licenses-plugin's per-variant dependency scan into PACKAGE_LICENSES.md,
-// the same asset the About screen's "Third-party package licenses" entry displays. See
-// licenses/packageLicenseParser.py for how each dependency's license is resolved -- it fails loudly
-// on any license it doesn't recognize, rather than silently shipping an incomplete attribution list.
 androidComponents {
     onVariants(selector().all()) { variant ->
-        val variantName = variant.name
-
-        val generatePackageLicenses =
-            tasks.register<Exec>("generatePackageLicenses${variantName.capitalized()}") {
-                commandLine(
-                    "python",
-                    "../licenses/packageLicenseParser.py",
-                    variantName
+        val generateDocAssets =
+            tasks.register<GenerateDocAssets>("generate${variant.name.capitalized()}DocAssets") {
+                docs.from(
+                    rootProject.file("PRIVACY.md"),
+                    rootProject.file("CHANGES.md"),
+                    rootProject.file("NOTICE"),
+                    rootProject.file("LICENSE.md"),
+                    rootProject.file("HELP.md"),
                 )
-            }.get()
-
-        tasks.matching { it.name == "${variant.name}OssLicensesTask" }
-            .configureEach {
-                this.dependsOn("cleanAssets")
-                generatePackageLicenses.dependsOn(this)
+                licenseReport.set(
+                    layout.buildDirectory.file(
+                        "generated/oss_licenses/${variant.name}/dependencies_with_licenses.json",
+                    ),
+                )
+                parserScript.set(rootProject.layout.projectDirectory.file("licenses/packageLicenseParser.py"))
+                licenseTexts.from(rootProject.fileTree("licenses") { include("*.txt") })
+                variantName.set(variant.name)
+                pythonExecutable.set(pythonInterpreter)
+                workingDirectory.set(layout.projectDirectory)
+                outputDir.set(layout.buildDirectory.dir("generated/docAssets/${variant.name}"))
+                // The report is produced by the oss-licenses plugin's own task, which nothing else
+                // here can point Gradle at.
+                dependsOn("${variant.name}OssLicensesTask")
             }
-
-        tasks.matching { it.name == "generate${variant.name.capitalized()}Assets" }
-            .configureEach { this.dependsOn(generatePackageLicenses) }
+        // Registers the directory as a variant asset source, which is what gives merge<Variant>Assets
+        // both the dependency on this task and the up-to-date checking a hand-wired dependsOn lacked.
+        variant.sources.assets?.addGeneratedSourceDirectory(generateDocAssets, GenerateDocAssets::outputDir)
     }
 }
