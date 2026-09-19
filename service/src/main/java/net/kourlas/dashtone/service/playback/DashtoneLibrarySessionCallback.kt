@@ -19,6 +19,7 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.guava.future
+import net.kourlas.dashtone.service.data.mediastore.AudioPermissionMonitor
 import net.kourlas.dashtone.service.shuffle.Grouping
 import net.kourlas.dashtone.service.shuffle.ShuffleController
 import net.kourlas.dashtone.service.shuffle.ShuffleSettings
@@ -30,6 +31,7 @@ class DashtoneLibrarySessionCallback(
     private val shuffleController: ShuffleController,
     private val playbackResumptionProvider: PlaybackResumptionProvider,
     private val queueShuffleState: QueueShuffleState,
+    private val audioPermissionMonitor: AudioPermissionMonitor,
     private val serviceScope: CoroutineScope,
 ) : MediaLibrarySession.Callback {
 
@@ -89,6 +91,13 @@ class DashtoneLibrarySessionCallback(
         browser: MediaSession.ControllerInfo,
         params: LibraryParams?,
     ): ListenableFuture<LibraryResult<MediaItem>> = serviceScope.future {
+        // Android raises no callback when a runtime permission changes, so a fresh connection --
+        // which is what "opening Dashtone" amounts to on AAOS -- is the moment to look again. The
+        // user may have granted audio access from the system settings app rather than from
+        // Dashtone's own permission row, which is the only other thing that calls refresh().
+        // DashtoneMediaLibraryService's isGranted collector clears the session's playback error
+        // as soon as this flips, so nothing further is needed here.
+        audioPermissionMonitor.refresh()
         LibraryResult.ofItem(browseTree.root(), params)
     }
 

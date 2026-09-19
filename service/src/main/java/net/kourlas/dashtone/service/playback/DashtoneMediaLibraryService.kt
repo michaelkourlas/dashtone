@@ -184,6 +184,7 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
             shuffleController,
             playbackResumptionProvider,
             queueShuffleState,
+            audioPermissionMonitor,
             serviceScope,
         )
         val session = MediaLibrarySession.Builder(this, player, callback)

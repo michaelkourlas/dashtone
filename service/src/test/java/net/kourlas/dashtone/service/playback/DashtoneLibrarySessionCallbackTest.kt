@@ -12,6 +12,7 @@ import net.kourlas.dashtone.service.data.local.ArtistEntity
 import net.kourlas.dashtone.service.data.local.PlaylistEntity
 import net.kourlas.dashtone.service.data.local.PlaylistEntryEntity
 import net.kourlas.dashtone.service.data.local.SongEntity
+import net.kourlas.dashtone.service.data.mediastore.AudioPermissionMonitor
 import net.kourlas.dashtone.service.data.mediastore.LibraryFolder
 import net.kourlas.dashtone.service.data.mediastore.LibraryScanner
 import net.kourlas.dashtone.service.data.prefs.AppPreferences
@@ -47,6 +48,7 @@ class DashtoneLibrarySessionCallbackTest {
     private lateinit var albumDao: FakeAlbumDao
     private lateinit var artistDao: FakeArtistDao
     private lateinit var playlistDao: FakePlaylistDao
+    private lateinit var audioPermissionMonitor: AudioPermissionMonitor
     private lateinit var callback: DashtoneLibrarySessionCallback
 
     @Before
@@ -55,6 +57,7 @@ class DashtoneLibrarySessionCallbackTest {
         albumDao = FakeAlbumDao(songDao)
         artistDao = FakeArtistDao(songDao)
         playlistDao = FakePlaylistDao(songDao)
+        audioPermissionMonitor = AudioPermissionMonitor(ApplicationProvider.getApplicationContext())
         val preferences = AppPreferences(FakeDataStore(emptyPreferences()))
         val repository = LibraryRepository(
             songDao, albumDao, artistDao, playlistDao, NoOpScannerForVoiceTest(), preferences, FakeAlbumArtInvalidator(),
@@ -67,6 +70,7 @@ class DashtoneLibrarySessionCallbackTest {
             shuffleController,
             resumptionProvider,
             QueueShuffleState(),
+            audioPermissionMonitor,
             CoroutineScope(Dispatchers.Unconfined),
         )
     }
