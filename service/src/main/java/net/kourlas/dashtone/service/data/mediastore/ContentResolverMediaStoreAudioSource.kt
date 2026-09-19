@@ -5,7 +5,6 @@ import android.content.Context
 import android.database.Cursor
 import android.os.Build
 import android.provider.MediaStore
-import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import net.kourlas.dashtone.service.R
 import javax.inject.Inject
@@ -25,7 +24,6 @@ class ContentResolverMediaStoreAudioSource @Inject constructor(
     private val supportsGenreColumn = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
 
     override fun queryAllAudio(): List<RawAudioRow> {
-        Log.w("DashtoneDiag", "queryAllAudio: permission=${AudioPermission.PERMISSION} granted=${AudioPermission.isGranted(context)}")
         if (!AudioPermission.isGranted(context)) return emptyList()
 
         val collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
@@ -51,14 +49,7 @@ class ContentResolverMediaStoreAudioSource @Inject constructor(
         }.toTypedArray()
 
         val rows = mutableListOf<RawAudioRow>()
-        val cursorResult = try {
-            context.contentResolver.query(collection, projection, null, null, null)
-        } catch (e: Exception) {
-            Log.e("DashtoneDiag", "queryAllAudio: query() threw", e)
-            throw e
-        }
-        Log.w("DashtoneDiag", "queryAllAudio: cursor=${cursorResult} count=${cursorResult?.count}")
-        cursorResult?.use { cursor ->
+        context.contentResolver.query(collection, projection, null, null, null)?.use { cursor ->
             // _ID and TITLE are the two columns every MediaStore audio row is fundamentally
             // defined by (present since API 1 on every Android device, stock or OEM-forked) --
             // everything else below uses getColumnIndex (-1 on a missing column) rather than
@@ -144,7 +135,6 @@ class ContentResolverMediaStoreAudioSource @Inject constructor(
                 )
             }
         }
-        Log.w("DashtoneDiag", "queryAllAudio: returning ${rows.size} rows")
         return rows
     }
 
