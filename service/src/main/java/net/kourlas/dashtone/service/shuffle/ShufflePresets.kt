@@ -8,7 +8,7 @@ package net.kourlas.dashtone.service.shuffle
  * their actual [ShuffleSettings] dynamically via [ShuffleController.applyCategoryShuffle], since
  * which axis gets shuffled is a user-configurable [CategoryShuffleMode] rather than fixed per
  * category. The constants below remain as readable fixtures for tests exercising
- * [ShuffleController]'s generic apply/naturalOrderFor/currentSettings mechanics, which don't care
+ * [ShuffleController]'s generic apply/naturalOrderFor mechanics, which don't care
  * whether a given [ShuffleSettings] came from a browse-tree tap or a settings-driven combination.
  */
 object ShufflePresets {

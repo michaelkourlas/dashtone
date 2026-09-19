@@ -30,10 +30,9 @@ class PlaybackResumptionProvider @Inject constructor(
         val state = queueStateStore.load() ?: return null
         val items = browseTree.songsByIds(state.songIds)
         if (items.isEmpty()) return null
-        // A song deleted since the queue was saved shifts everything after it back by one, same
-        // shortfall the old ShuffleController.reconcile() accepted -- clamping into the surviving
-        // list's bounds is an approximation, not an attempt to relocate exactly which song was
-        // actually playing.
+        // A song deleted since the queue was saved shifts everything after it back by one, so
+        // clamping into the surviving list's bounds is an approximation: it keeps the index in
+        // range rather than relocating exactly which song was playing.
         val startIndex = state.currentIndex.coerceIn(0, items.size - 1)
         val naturalItems = if (state.isShuffled) browseTree.songsByIds(state.naturalSongIds) else items
         return ResumptionState(items, naturalItems, startIndex, state.isShuffled, state.grouping, state.repeatModeOrdinal)

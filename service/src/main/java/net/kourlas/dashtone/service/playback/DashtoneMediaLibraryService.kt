@@ -241,11 +241,10 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
         // can't be changed, and means a car host's connection-handshake prepare() call can advance
         // an EMPTY player straight to Player.STATE_ENDED / legacy STATE_STOPPED with null metadata
         // -- an active-looking bar with nothing in it, e.g. on first launch before anything has
-        // ever played. QueueShufflePlayer.prepare() used to refuse to forward that call while the
-        // queue was empty specifically to avoid this (see its own doc comment for why that was
-        // reverted -- real-vehicle evidence pointed to at least one car host needing that state
-        // transition to treat the session as alive at all). What seeding the player with the last
-        // queue here (paused, not auto-playing) adds on top, for a RETURNING user, is a resumable
+        // ever played. QueueShufflePlayer.prepare() holds that call back while the queue is empty,
+        // keeping the player at STATE_IDLE and that bar away entirely -- see its own doc comment.
+        // What seeding the player with the last queue here (paused, not auto-playing) adds on top,
+        // for a RETURNING user, is a resumable
         // "paused on X" bar rather than an empty one -- the whole last queue, not just the one song
         // that happened to be playing (see QueueStateEntity's doc comment for why there's only ever
         // one queue to restore).
