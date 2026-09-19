@@ -27,5 +27,4 @@ data class AlbumEntity(
     val name: String,
     val artistId: Long,
     val year: Int?,
-    val trackCount: Int,
 )

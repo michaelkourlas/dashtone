@@ -163,7 +163,7 @@ class MediaItemMapperTest {
 
     @Test
     fun `album mapping is browsable with the artist name attached, not the album's own`() {
-        val album = AlbumEntity(id = 100, name = "ABBA Gold", artistId = 10, year = 1992, trackCount = 19)
+        val album = AlbumEntity(id = 100, name = "ABBA Gold", artistId = 10, year = 1992)
 
         val item = mapper.toMediaItem(album, artistName = "ABBA")
 

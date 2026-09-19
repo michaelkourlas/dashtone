@@ -140,7 +140,7 @@ class DashtoneDatabaseTest {
     private suspend fun seedArtistAndAlbum() {
         database.artistDao().upsertAll(listOf(ArtistEntity(id = 1, name = "Artist")))
         database.albumDao().upsertAll(
-            listOf(AlbumEntity(id = 1, name = "Album", artistId = 1, year = null, trackCount = 1)),
+            listOf(AlbumEntity(id = 1, name = "Album", artistId = 1, year = null)),
         )
     }
 

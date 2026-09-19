@@ -53,7 +53,7 @@ class ShuffleControllerTest {
         val artist = ArtistEntity(id = 1, name = "Artist")
         artistDao.upsertAll(listOf(artist))
         val albums = (1..albumCount).map {
-            AlbumEntity(id = it.toLong(), name = "Album $it", artistId = 1, year = null, trackCount = tracksPerAlbum)
+            AlbumEntity(id = it.toLong(), name = "Album $it", artistId = 1, year = null)
         }
         albumDao.upsertAll(albums)
         val songs = albums.flatMap { album ->
@@ -87,8 +87,8 @@ class ShuffleControllerTest {
         artistDao.upsertAll(listOf(ArtistEntity(id = 1, name = "Artist A"), ArtistEntity(id = 2, name = "Artist B")))
         albumDao.upsertAll(
             listOf(
-                AlbumEntity(id = 1, name = "Album 1", artistId = 1, year = null, trackCount = 1),
-                AlbumEntity(id = 2, name = "Album 2", artistId = 2, year = null, trackCount = 1),
+                AlbumEntity(id = 1, name = "Album 1", artistId = 1, year = null),
+                AlbumEntity(id = 2, name = "Album 2", artistId = 2, year = null),
             ),
         )
         songDao.upsertAll(
@@ -117,7 +117,7 @@ class ShuffleControllerTest {
     @Test
     fun `naturalOrderFor Shuffle All returns songs alphabetically by title`() = runTest {
         artistDao.upsertAll(listOf(ArtistEntity(id = 1, name = "Artist")))
-        albumDao.upsertAll(listOf(AlbumEntity(id = 1, name = "Album", artistId = 1, year = null, trackCount = 3)))
+        albumDao.upsertAll(listOf(AlbumEntity(id = 1, name = "Album", artistId = 1, year = null)))
         songDao.upsertAll(
             listOf(
                 SongEntity(id = 1, title = "Charlie", trackNumber = 1, discNumber = 1, durationMs = 1, albumId = 1, artistId = 1, contentUri = "c1", dateAdded = 0, dateModified = 0),

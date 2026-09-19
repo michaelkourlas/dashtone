@@ -79,8 +79,8 @@ class DashtoneLibrarySessionCallbackTest {
         artistDao.upsertAll(listOf(ArtistEntity(id = 10, name = "Adele"), ArtistEntity(id = 20, name = "ABBA")))
         albumDao.upsertAll(
             listOf(
-                AlbumEntity(id = 100, name = "19", artistId = 10, year = null, trackCount = 2),
-                AlbumEntity(id = 200, name = "ABBA Gold", artistId = 20, year = null, trackCount = 1),
+                AlbumEntity(id = 100, name = "19", artistId = 10, year = null),
+                AlbumEntity(id = 200, name = "ABBA Gold", artistId = 20, year = null),
             ),
         )
         songDao.upsertAll(

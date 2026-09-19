@@ -132,12 +132,12 @@ class ChildCountTest {
         )
         albumDao.upsertAll(
             listOf(
-                AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = 1985, trackCount = 2),
+                AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = 1985),
                 // Same decade as Album 1, so the decade list collapses these two into one entry.
-                AlbumEntity(id = 200, name = "Album 2", artistId = 20, year = 1989, trackCount = 1),
-                AlbumEntity(id = 300, name = "Album 3", artistId = 10, year = null, trackCount = 1),
+                AlbumEntity(id = 200, name = "Album 2", artistId = 20, year = 1989),
+                AlbumEntity(id = 300, name = "Album 3", artistId = 10, year = null),
                 // No songs, so it contributes no decade -- the query joins through songs.
-                AlbumEntity(id = 400, name = "Songless", artistId = 20, year = 2001, trackCount = 0),
+                AlbumEntity(id = 400, name = "Songless", artistId = 20, year = 2001),
             ),
         )
         songDao.upsertAll(

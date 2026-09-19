@@ -64,7 +64,6 @@ class MediaStoreLibraryScanner @Inject constructor(
 
             val artists = LinkedHashMap<Long, ArtistEntity>()
             val albumNames = LinkedHashMap<Long, AlbumEntity>()
-            val albumTrackCounts = HashMap<Long, Int>()
             val songs = ArrayList<SongEntity>(rows.size)
 
             for (row in rows) {
@@ -76,10 +75,8 @@ class MediaStoreLibraryScanner @Inject constructor(
                         name = row.albumName,
                         artistId = row.artistId,
                         year = row.albumYear,
-                        trackCount = 0,
                     ),
                 )
-                albumTrackCounts[row.albumId] = (albumTrackCounts[row.albumId] ?: 0) + 1
 
                 val (discNumber, trackNumber) = parseDiscAndTrack(row.rawTrack)
                 songs += SongEntity(
@@ -99,11 +96,9 @@ class MediaStoreLibraryScanner @Inject constructor(
                     folderPath = fullFolderPathOf(row.relativePath),
                 )
             }
-            val albums = albumNames.values.map { it.copy(trackCount = albumTrackCounts.getValue(it.id)) }
-
             // Parents must be upserted before songs due to the FK constraints on SongEntity.
             artistDao.upsertAll(artists.values.toList())
-            albumDao.upsertAll(albums)
+            albumDao.upsertAll(albumNames.values.toList())
             songDao.upsertAll(songs)
 
             // See startupGraceDeadlineMs's own doc comment for the reasoning. The deadline is set

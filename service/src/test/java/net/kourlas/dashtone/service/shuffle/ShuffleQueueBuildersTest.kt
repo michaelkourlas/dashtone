@@ -32,7 +32,7 @@ private fun song(
 )
 
 private fun album(id: Long, name: String, artistId: Long = 1) =
-    AlbumEntity(id = id, name = name, artistId = artistId, year = null, trackCount = 0)
+    AlbumEntity(id = id, name = name, artistId = artistId, year = null)
 
 private fun artist(id: Long, name: String) = ArtistEntity(id = id, name = name)
 

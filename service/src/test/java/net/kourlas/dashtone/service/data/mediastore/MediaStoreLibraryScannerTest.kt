@@ -42,7 +42,7 @@ class MediaStoreLibraryScannerTest {
     }
 
     @Test
-    fun `scan groups songs into albums and artists with correct track counts`() = runTest {
+    fun `scan groups songs into albums and artists`() = runTest {
         source.rows = listOf(
             rawAudioRow(id = 1, title = "Song A", artistId = 10, artistName = "Artist X", albumId = 100, albumName = "Album 1", rawTrack = 1),
             rawAudioRow(id = 2, title = "Song B", artistId = 10, artistName = "Artist X", albumId = 100, albumName = "Album 1", rawTrack = 2),
@@ -54,8 +54,6 @@ class MediaStoreLibraryScannerTest {
         assertEquals(3, songDao.current.size)
         assertEquals(2, albumDao.current.size)
         assertEquals(2, artistDao.current.size)
-        assertEquals(2, albumDao.current.getValue(100).trackCount)
-        assertEquals(1, albumDao.current.getValue(200).trackCount)
         assertEquals("Artist X", artistDao.current.getValue(10).name)
         assertEquals(100L, songDao.current.getValue(1).albumId)
     }

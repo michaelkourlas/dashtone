@@ -12,7 +12,7 @@ import androidx.room.RoomDatabase
         PlaylistEntity::class,
         PlaylistEntryEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
 )
 abstract class DashtoneDatabase : RoomDatabase() {

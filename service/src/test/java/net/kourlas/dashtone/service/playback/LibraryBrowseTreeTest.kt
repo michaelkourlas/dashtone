@@ -58,7 +58,7 @@ class LibraryBrowseTreeTest {
 
     private suspend fun seedLibrary() {
         artistDao.upsertAll(listOf(ArtistEntity(id = 10, name = "Artist X")))
-        albumDao.upsertAll(listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null, trackCount = 2)))
+        albumDao.upsertAll(listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null)))
         songDao.upsertAll(
             listOf(
                 SongEntity(
@@ -243,7 +243,7 @@ class LibraryBrowseTreeTest {
     fun `genres root leads with Play All Genres then Shuffle Genres, then lists distinct genres, falling back to Unknown Genre`() =
         runTest {
             artistDao.upsertAll(listOf(ArtistEntity(id = 10, name = "Artist X")))
-            albumDao.upsertAll(listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null, trackCount = 2)))
+            albumDao.upsertAll(listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null)))
             songDao.upsertAll(
                 listOf(
                     SongEntity(
@@ -274,8 +274,8 @@ class LibraryBrowseTreeTest {
         artistDao.upsertAll(listOf(ArtistEntity(id = 10, name = "Artist X")))
         albumDao.upsertAll(
             listOf(
-                AlbumEntity(id = 100, name = "Zebra Album", artistId = 10, year = null, trackCount = 2),
-                AlbumEntity(id = 200, name = "Apple Album", artistId = 10, year = null, trackCount = 1),
+                AlbumEntity(id = 100, name = "Zebra Album", artistId = 10, year = null),
+                AlbumEntity(id = 200, name = "Apple Album", artistId = 10, year = null),
             ),
         )
         songDao.upsertAll(
@@ -318,7 +318,7 @@ class LibraryBrowseTreeTest {
         runTest {
             artistDao.upsertAll(listOf(ArtistEntity(id = 10, name = "Artist X")))
             albumDao.upsertAll(
-                listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null, trackCount = 3)),
+                listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null)),
             )
             songDao.upsertAll(
                 listOf(
@@ -360,7 +360,7 @@ class LibraryBrowseTreeTest {
     fun `album artists root leads with Play All Album Artists then Shuffle Album Artists, then lists distinct album artists`() =
         runTest {
             artistDao.upsertAll(listOf(ArtistEntity(id = 10, name = "Artist X")))
-            albumDao.upsertAll(listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null, trackCount = 1)))
+            albumDao.upsertAll(listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null)))
             songDao.upsertAll(
                 listOf(
                     SongEntity(
@@ -381,7 +381,7 @@ class LibraryBrowseTreeTest {
     @Test
     fun `genre and album artist names containing slashes round-trip through the media id`() = runTest {
         artistDao.upsertAll(listOf(ArtistEntity(id = 10, name = "Artist X")))
-        albumDao.upsertAll(listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null, trackCount = 1)))
+        albumDao.upsertAll(listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null)))
         songDao.upsertAll(
             listOf(
                 SongEntity(
@@ -410,7 +410,7 @@ class LibraryBrowseTreeTest {
     fun `composers root leads with Play All Composers then Shuffle Composers, then lists distinct composers`() =
         runTest {
             artistDao.upsertAll(listOf(ArtistEntity(id = 10, name = "Artist X")))
-            albumDao.upsertAll(listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null, trackCount = 1)))
+            albumDao.upsertAll(listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null)))
             songDao.upsertAll(
                 listOf(
                     SongEntity(
@@ -433,8 +433,8 @@ class LibraryBrowseTreeTest {
         artistDao.upsertAll(listOf(ArtistEntity(id = 10, name = "Artist X")))
         albumDao.upsertAll(
             listOf(
-                AlbumEntity(id = 100, name = "Zebra Score", artistId = 10, year = null, trackCount = 1),
-                AlbumEntity(id = 200, name = "Apple Score", artistId = 10, year = null, trackCount = 1),
+                AlbumEntity(id = 100, name = "Zebra Score", artistId = 10, year = null),
+                AlbumEntity(id = 200, name = "Apple Score", artistId = 10, year = null),
             ),
         )
         songDao.upsertAll(
@@ -470,7 +470,7 @@ class LibraryBrowseTreeTest {
     @Test
     fun `All Composer Songs resolves to every song with that composer, sorted by title, across albums`() = runTest {
         artistDao.upsertAll(listOf(ArtistEntity(id = 10, name = "Artist X")))
-        albumDao.upsertAll(listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null, trackCount = 2)))
+        albumDao.upsertAll(listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null)))
         songDao.upsertAll(
             listOf(
                 SongEntity(
@@ -496,9 +496,9 @@ class LibraryBrowseTreeTest {
         artistDao.upsertAll(listOf(ArtistEntity(id = 10, name = "Artist X")))
         albumDao.upsertAll(
             listOf(
-                AlbumEntity(id = 100, name = "80s Album", artistId = 10, year = 1985, trackCount = 1),
-                AlbumEntity(id = 200, name = "2020s Album", artistId = 10, year = 2021, trackCount = 1),
-                AlbumEntity(id = 300, name = "No Year Album", artistId = 10, year = null, trackCount = 1),
+                AlbumEntity(id = 100, name = "80s Album", artistId = 10, year = 1985),
+                AlbumEntity(id = 200, name = "2020s Album", artistId = 10, year = 2021),
+                AlbumEntity(id = 300, name = "No Year Album", artistId = 10, year = null),
             ),
         )
         songDao.upsertAll(
@@ -536,9 +536,9 @@ class LibraryBrowseTreeTest {
         artistDao.upsertAll(listOf(ArtistEntity(id = 10, name = "Artist X")))
         albumDao.upsertAll(
             listOf(
-                AlbumEntity(id = 100, name = "Zebra 80s Album", artistId = 10, year = 1985, trackCount = 1),
-                AlbumEntity(id = 200, name = "Apple 80s Album", artistId = 10, year = 1989, trackCount = 1),
-                AlbumEntity(id = 300, name = "2020s Album", artistId = 10, year = 2021, trackCount = 1),
+                AlbumEntity(id = 100, name = "Zebra 80s Album", artistId = 10, year = 1985),
+                AlbumEntity(id = 200, name = "Apple 80s Album", artistId = 10, year = 1989),
+                AlbumEntity(id = 300, name = "2020s Album", artistId = 10, year = 2021),
             ),
         )
         songDao.upsertAll(
@@ -581,9 +581,9 @@ class LibraryBrowseTreeTest {
         artistDao.upsertAll(listOf(ArtistEntity(id = 10, name = "Artist X")))
         albumDao.upsertAll(
             listOf(
-                AlbumEntity(id = 100, name = "80s Album", artistId = 10, year = 1985, trackCount = 1),
-                AlbumEntity(id = 200, name = "Another 80s Album", artistId = 10, year = 1989, trackCount = 1),
-                AlbumEntity(id = 300, name = "2020s Album", artistId = 10, year = 2021, trackCount = 1),
+                AlbumEntity(id = 100, name = "80s Album", artistId = 10, year = 1985),
+                AlbumEntity(id = 200, name = "Another 80s Album", artistId = 10, year = 1989),
+                AlbumEntity(id = 300, name = "2020s Album", artistId = 10, year = 2021),
             ),
         )
         songDao.upsertAll(
@@ -614,7 +614,7 @@ class LibraryBrowseTreeTest {
     @Test
     fun `folders root lists only top-level folders -- songs one or more levels deep are not shown directly`() = runTest {
         artistDao.upsertAll(listOf(ArtistEntity(id = 10, name = "Artist X")))
-        albumDao.upsertAll(listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null, trackCount = 3)))
+        albumDao.upsertAll(listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null)))
         songDao.upsertAll(
             listOf(
                 // Lives directly inside "Music" (depth 1) -- belongs under folder("Music") when
@@ -653,7 +653,7 @@ class LibraryBrowseTreeTest {
     @Test
     fun `browsing into a folder shows its subfolders then its direct songs`() = runTest {
         artistDao.upsertAll(listOf(ArtistEntity(id = 10, name = "Artist X")))
-        albumDao.upsertAll(listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null, trackCount = 3)))
+        albumDao.upsertAll(listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null)))
         songDao.upsertAll(
             listOf(
                 SongEntity(
@@ -763,8 +763,8 @@ class LibraryBrowseTreeTest {
         artistDao.upsertAll(listOf(ArtistEntity(id = 10, name = "Artist X")))
         albumDao.upsertAll(
             listOf(
-                AlbumEntity(id = 100, name = "Zebra Album", artistId = 10, year = null, trackCount = 2),
-                AlbumEntity(id = 200, name = "Apple Album", artistId = 10, year = null, trackCount = 1),
+                AlbumEntity(id = 100, name = "Zebra Album", artistId = 10, year = null),
+                AlbumEntity(id = 200, name = "Apple Album", artistId = 10, year = null),
             ),
         )
         songDao.upsertAll(
@@ -800,8 +800,8 @@ class LibraryBrowseTreeTest {
             artistDao.upsertAll(listOf(ArtistEntity(id = 10, name = "Artist X")))
             albumDao.upsertAll(
                 listOf(
-                    AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null, trackCount = 2),
-                    AlbumEntity(id = 200, name = "Album 2", artistId = 10, year = null, trackCount = 2),
+                    AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null),
+                    AlbumEntity(id = 200, name = "Album 2", artistId = 10, year = null),
                 ),
             )
             songDao.upsertAll(
@@ -838,7 +838,7 @@ class LibraryBrowseTreeTest {
     @Test
     fun `songsQueueFor shuffled is a flat shuffle with no album grouping to preserve`() = runTest {
         artistDao.upsertAll(listOf(ArtistEntity(id = 10, name = "Artist X")))
-        albumDao.upsertAll(listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null, trackCount = 8)))
+        albumDao.upsertAll(listOf(AlbumEntity(id = 100, name = "Album 1", artistId = 10, year = null)))
         songDao.upsertAll(
             (1..8).map { id ->
                 SongEntity(
