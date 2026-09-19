@@ -1,6 +1,7 @@
 package net.kourlas.dashtone.service.playback
 
 import kotlinx.coroutines.test.runTest
+import net.kourlas.dashtone.service.data.local.QueueStateEntity
 import net.kourlas.dashtone.service.shuffle.Grouping
 import net.kourlas.dashtone.service.testing.FakeQueueStateDao
 import org.junit.Assert.assertEquals
@@ -57,6 +58,49 @@ class QueueStateStoreTest {
         )
 
         assertNull(store.load()?.grouping)
+    }
+
+    // Grouping is persisted by ordinal, so a reordered or removed constant yields an ordinal with
+    // no enum behind it. The queue still restores; only double-tap category skipping is lost.
+    @Test
+    fun `an out-of-range grouping ordinal still restores the queue, without a grouping`() = runTest {
+        dao.upsert(
+            QueueStateEntity(
+                songIdsJson = "[1,2]",
+                naturalSongIdsJson = "[1,2]",
+                currentIndex = 1,
+                isShuffled = false,
+                groupingOrdinal = Grouping.entries.size + 7,
+                repeatModeOrdinal = 0,
+                updatedAt = 0,
+            ),
+        )
+
+        val state = store.load()
+
+        assertEquals(listOf(1L, 2L), state?.songIds)
+        assertEquals(1, state?.currentIndex)
+        assertNull(state?.grouping)
+    }
+
+    // Unreadable JSON means there is no queue to resume, which every caller already handles --
+    // DashtoneMediaLibraryService seeds resumption from a fire-and-forget launch whose
+    // CoroutineExceptionHandler would otherwise swallow the throw and leave no trace.
+    @Test
+    fun `an unreadable queue reads back as nothing to resume`() = runTest {
+        dao.upsert(
+            QueueStateEntity(
+                songIdsJson = "not json",
+                naturalSongIdsJson = "[1]",
+                currentIndex = 0,
+                isShuffled = false,
+                groupingOrdinal = null,
+                repeatModeOrdinal = 0,
+                updatedAt = 0,
+            ),
+        )
+
+        assertNull(store.load())
     }
 
     @Test

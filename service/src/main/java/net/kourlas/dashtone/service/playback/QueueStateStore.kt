@@ -49,18 +49,31 @@ class QueueStateStore @Inject constructor(
         )
     }
 
+    /** Null when there is nothing resumable, including when the stored row can no longer be read
+     * back. Every caller already treats null as "nothing to resume" and carries on, which is the
+     * right outcome here too: the alternative is throwing from a fire-and-forget serviceScope
+     * launch (see DashtoneMediaLibraryService.onCreate), where the CoroutineExceptionHandler
+     * swallows it and resumption stops working with no other trace. [AppPreferences] degrades an
+     * unreadable [net.kourlas.dashtone.service.shuffle.CategoryShuffleMode] the same way.
+     *
+     * A [groupingOrdinal] outside the enum degrades to a null grouping -- the queue still restores,
+     * it just loses double-tap category skipping. [Grouping] is persisted by ordinal, so this is
+     * what a reordered or removed constant would produce; its own doc comment asks that new
+     * groupings be appended for exactly that reason. */
     suspend fun load(): QueueState? {
         val entity = queueStateDao.get() ?: return null
         return QueueState(
-            songIds = decodeIds(entity.songIdsJson),
-            naturalSongIds = decodeIds(entity.naturalSongIdsJson),
+            songIds = decodeIds(entity.songIdsJson) ?: return null,
+            naturalSongIds = decodeIds(entity.naturalSongIdsJson) ?: return null,
             currentIndex = entity.currentIndex,
             isShuffled = entity.isShuffled,
-            grouping = entity.groupingOrdinal?.let { Grouping.entries[it] },
+            grouping = entity.groupingOrdinal?.let { Grouping.entries.getOrNull(it) },
             repeatModeOrdinal = entity.repeatModeOrdinal,
         )
     }
 
     private fun encodeIds(ids: List<Long>): String = Json.encodeToString(ids)
-    private fun decodeIds(json: String): List<Long> = Json.decodeFromString(json)
+
+    private fun decodeIds(json: String): List<Long>? =
+        runCatching { Json.decodeFromString<List<Long>>(json) }.getOrNull()
 }
