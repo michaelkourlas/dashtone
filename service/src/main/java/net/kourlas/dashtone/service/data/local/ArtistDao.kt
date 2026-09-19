@@ -13,6 +13,9 @@ interface ArtistDao {
     @Query("SELECT id FROM artists")
     suspend fun getAllIds(): List<Long>
 
+    @Query("SELECT COUNT(*) FROM artists")
+    suspend fun count(): Int
+
     @Query("SELECT * FROM artists WHERE id = :id")
     suspend fun getById(id: Long): ArtistEntity?
 

@@ -28,6 +28,9 @@ interface PlaylistDao {
     @Query("SELECT id FROM playlists")
     suspend fun getAllIds(): List<Long>
 
+    @Query("SELECT COUNT(*) FROM playlists")
+    suspend fun count(): Int
+
     @Upsert
     suspend fun upsertAll(playlists: List<PlaylistEntity>)
 

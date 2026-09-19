@@ -16,6 +16,9 @@ interface AlbumDao {
     @Query("SELECT id FROM albums")
     suspend fun getAllIds(): List<Long>
 
+    @Query("SELECT COUNT(*) FROM albums")
+    suspend fun count(): Int
+
     @Query("SELECT * FROM albums WHERE id = :id")
     suspend fun getById(id: Long): AlbumEntity?
 

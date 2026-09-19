@@ -389,7 +389,7 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
 
     private suspend fun notifyChildrenChanged(session: MediaLibrarySession, parentIds: List<String>) {
         for (parentId in parentIds) {
-            val count = browseTree.children(parentId)?.size ?: continue
+            val count = browseTree.childCount(parentId) ?: continue
             session.notifyChildrenChanged(parentId, count, null)
         }
     }

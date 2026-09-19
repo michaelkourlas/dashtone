@@ -72,12 +72,12 @@ class LibraryBrowseTree @Inject constructor(
             val albums = libraryRepository.albums.first().map { album ->
                 mediaItemMapper.toMediaItem(album, artistNamesById[album.artistId].orEmpty())
             }
-            listOf(mediaItemMapper.playAllAlbumsItem(), mediaItemMapper.shuffleAllAlbumsItem()) + albums
+            rootSentinels(MediaIds.ALBUMS_ROOT) + albums
         }
 
         MediaIds.ARTISTS_ROOT -> {
             val artists = libraryRepository.artists.first().map { mediaItemMapper.toMediaItem(it) }
-            listOf(mediaItemMapper.playAllArtistsItem(), mediaItemMapper.shuffleAllArtistsItem()) + artists
+            rootSentinels(MediaIds.ARTISTS_ROOT) + artists
         }
 
         // Genre/album artist have no backing entity (see SongEntity's doc comment), so their
@@ -86,19 +86,19 @@ class LibraryBrowseTree @Inject constructor(
         MediaIds.GENRES_ROOT -> {
             val genres = libraryRepository.songs.first().map { it.genreName ?: UNKNOWN_GENRE }
                 .distinct().sorted().map { mediaItemMapper.toGenreItem(it) }
-            listOf(mediaItemMapper.playAllGenresItem(), mediaItemMapper.shuffleAllGenresItem()) + genres
+            rootSentinels(MediaIds.GENRES_ROOT) + genres
         }
 
         MediaIds.ALBUM_ARTISTS_ROOT -> {
             val albumArtists = libraryRepository.songs.first().map { it.albumArtistName ?: UNKNOWN_ALBUM_ARTIST }
                 .distinct().sorted().map { mediaItemMapper.toAlbumArtistItem(it) }
-            listOf(mediaItemMapper.playAllAlbumArtistsItem(), mediaItemMapper.shuffleAllAlbumArtistsItem()) + albumArtists
+            rootSentinels(MediaIds.ALBUM_ARTISTS_ROOT) + albumArtists
         }
 
         MediaIds.COMPOSERS_ROOT -> {
             val composers = libraryRepository.songs.first().map { it.composerName ?: UNKNOWN_COMPOSER }
                 .distinct().sorted().map { mediaItemMapper.toComposerItem(it) }
-            listOf(mediaItemMapper.playAllComposersItem(), mediaItemMapper.shuffleAllComposersItem()) + composers
+            rootSentinels(MediaIds.COMPOSERS_ROOT) + composers
         }
 
         // Decades group ALBUMS (an album's MediaStore YEAR), not a per-song field like genre/album
@@ -117,14 +117,76 @@ class LibraryBrowseTree @Inject constructor(
         // root," matching folderChildren's own convention.
         MediaIds.FOLDERS_ROOT -> folderChildren("")
 
-        MediaIds.SONGS_ROOT -> listOf(mediaItemMapper.playAllSongsItem(), mediaItemMapper.shuffleAllItem()) +
-            mapSongs(libraryRepository.songs.first())
+        MediaIds.SONGS_ROOT -> rootSentinels(MediaIds.SONGS_ROOT) + mapSongs(libraryRepository.songs.first())
 
         // No shuffle sentinel here: playlists are user-curated file order, not a shuffleable
         // library-wide category like the other roots.
         MediaIds.PLAYLISTS_ROOT -> libraryRepository.playlists.first().map { mediaItemMapper.toMediaItem(it) }
 
         else -> loadContainerChildren(parentId)
+    }
+
+    /** The "Play All X"/"Shuffle X" rows a category root leads with, ahead of its real entries.
+     * Shared by [children] and [childCount] so the two can never disagree on how many rows come
+     * first -- a count that overshoots leaves the host rendering blanks past the end of the list,
+     * and one that undershoots silently truncates it. */
+    private fun rootSentinels(parentId: String): List<MediaItem> = when (parentId) {
+        MediaIds.ALBUMS_ROOT ->
+            listOf(mediaItemMapper.playAllAlbumsItem(), mediaItemMapper.shuffleAllAlbumsItem())
+        MediaIds.ARTISTS_ROOT ->
+            listOf(mediaItemMapper.playAllArtistsItem(), mediaItemMapper.shuffleAllArtistsItem())
+        MediaIds.GENRES_ROOT ->
+            listOf(mediaItemMapper.playAllGenresItem(), mediaItemMapper.shuffleAllGenresItem())
+        MediaIds.ALBUM_ARTISTS_ROOT ->
+            listOf(mediaItemMapper.playAllAlbumArtistsItem(), mediaItemMapper.shuffleAllAlbumArtistsItem())
+        MediaIds.COMPOSERS_ROOT ->
+            listOf(mediaItemMapper.playAllComposersItem(), mediaItemMapper.shuffleAllComposersItem())
+        MediaIds.SONGS_ROOT ->
+            listOf(mediaItemMapper.playAllSongsItem(), mediaItemMapper.shuffleAllItem())
+        // Decades and Playlists open straight onto their entries: a decade has no matching
+        // Grouping for a shuffle preset to use (see the DECADES_ROOT branch above), and a playlist
+        // is curated file order rather than a shuffleable library-wide category.
+        else -> emptyList()
+    }
+
+    /** How many children [parentId] has, for
+     * [androidx.media3.session.MediaLibraryService.MediaLibrarySession.notifyChildrenChanged],
+     * which wants the size alone rather than the items.
+     *
+     * Every library change notifies nine roots at once, so deriving these from [children] meant
+     * six full reads of the song table, four of albums and four of artists, plus building a
+     * [MediaItem] for every song in the library, to produce nine integers. Each root answers from
+     * a COUNT or a DISTINCT instead; anything else falls back to [children], which is both correct
+     * and rare -- the notify path only ever asks about roots. */
+    suspend fun childCount(parentId: String): Int? {
+        val entries = when (parentId) {
+            MediaIds.ALBUMS_ROOT -> libraryRepository.albumCount()
+            MediaIds.ARTISTS_ROOT -> libraryRepository.artistCount()
+            MediaIds.GENRES_ROOT ->
+                libraryRepository.distinctGenreNames().map { it ?: UNKNOWN_GENRE }.distinct().size
+            MediaIds.ALBUM_ARTISTS_ROOT ->
+                libraryRepository.distinctAlbumArtistNames().map { it ?: UNKNOWN_ALBUM_ARTIST }.distinct().size
+            MediaIds.COMPOSERS_ROOT ->
+                libraryRepository.distinctComposerNames().map { it ?: UNKNOWN_COMPOSER }.distinct().size
+            MediaIds.DECADES_ROOT -> libraryRepository.distinctAlbumYears().map { decadeOf(it) }.distinct().size
+            MediaIds.FOLDERS_ROOT -> folderChildCount("")
+            MediaIds.SONGS_ROOT -> libraryRepository.songCount()
+            MediaIds.PLAYLISTS_ROOT -> libraryRepository.playlistCount()
+            else -> return children(parentId)?.size
+        }
+        return rootSentinels(parentId).size + entries
+    }
+
+    /** [folderChildren]'s size, counted from the distinct folder paths rather than from the songs
+     * inside them. */
+    private suspend fun folderChildCount(prefix: String): Int {
+        val prefixDepth = if (prefix.isEmpty()) 0 else prefix.count { it == '/' } + 1
+        val subfolders = libraryRepository.distinctFolderPaths()
+            .filter { it != prefix && (prefix.isEmpty() || it.startsWith("$prefix/")) }
+            .map { it.split('/').subList(0, prefixDepth + 1).joinToString("/") }
+            .distinct()
+            .size
+        return subfolders + libraryRepository.songCountInFolder(prefix)
     }
 
     // The car UI's toolbar tab strip is a plain, non-scrolling row that fits exactly 4 tabs and

@@ -44,6 +44,21 @@ class LibraryRepository @Inject constructor(
     fun albumsForArtist(artistId: Long): Flow<List<AlbumEntity>> = albumDao.observeForArtist(artistId)
     fun songsForPlaylist(playlistId: Long): Flow<List<SongEntity>> = playlistDao.observeSongsForPlaylist(playlistId)
 
+    // Sizes and distinct category values, answered in SQL. The browse tree reports how many
+    // children a node has far more often than it renders them (every library change notifies nine
+    // roots at once), and going through the observeAll() flows for that means reading every row of
+    // several tables and building a MediaItem per song to arrive at an Int.
+    suspend fun songCount(): Int = songDao.count()
+    suspend fun albumCount(): Int = albumDao.count()
+    suspend fun artistCount(): Int = artistDao.count()
+    suspend fun playlistCount(): Int = playlistDao.count()
+    suspend fun distinctGenreNames(): List<String?> = songDao.distinctGenreNames()
+    suspend fun distinctAlbumArtistNames(): List<String?> = songDao.distinctAlbumArtistNames()
+    suspend fun distinctComposerNames(): List<String?> = songDao.distinctComposerNames()
+    suspend fun distinctFolderPaths(): List<String> = songDao.distinctFolderPaths()
+    suspend fun distinctAlbumYears(): List<Int?> = songDao.distinctAlbumYears()
+    suspend fun songCountInFolder(folderPath: String): Int = songDao.countInFolder(folderPath)
+
     suspend fun songById(id: Long): SongEntity? = songDao.getById(id)
     suspend fun albumById(id: Long): AlbumEntity? = albumDao.getById(id)
     suspend fun artistById(id: Long): ArtistEntity? = artistDao.getById(id)
