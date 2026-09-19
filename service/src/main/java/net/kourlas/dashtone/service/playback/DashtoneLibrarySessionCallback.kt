@@ -114,7 +114,7 @@ class DashtoneLibrarySessionCallback(
             // the "Play All"/"Shuffle All" sentinels included. Re-inserted at the host's current
             // scroll offset, that's what shows up as the shuffle icon appearing to replace a
             // regular row's icon partway down the list.
-            val paged = children.drop(page * pageSize).take(pageSize)
+            val paged = children.pageSlice(page, pageSize)
             LibraryResult.ofItemList(ImmutableList.copyOf(paged), params)
         }
     }
@@ -448,7 +448,7 @@ class DashtoneLibrarySessionCallback(
         pageSize: Int,
         params: LibraryParams?,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceScope.future {
-        val results = browseTree.search(query).drop(page * pageSize).take(pageSize)
+        val results = browseTree.search(query).pageSlice(page, pageSize)
         LibraryResult.ofItemList(ImmutableList.copyOf(results), params)
     }
 
@@ -456,4 +456,18 @@ class DashtoneLibrarySessionCallback(
         val queue = shuffleController.apply(settings)
         return browseTree.mapSongs(queue.songs)
     }
+}
+
+/** The [page]-th slice of [pageSize] items, clamped to what the list actually holds. Kept free of
+ * Media3 types so it's directly unit-testable, the same way [reorderForShuffleToggle] is.
+ *
+ * The offset is computed in Long because a host is free to ask for an unbounded page size, and
+ * Int.MAX_VALUE is exactly what Media3's legacy bridge passes when a browser sets no page options
+ * at all. An Int multiply overflows to a negative offset for any page past the first, and
+ * [List.drop] rejects a negative count outright -- which surfaces as the whole browse request
+ * failing rather than as an empty page. A non-positive [pageSize] is empty for the same reason. */
+internal fun <T> List<T>.pageSlice(page: Int, pageSize: Int): List<T> {
+    if (pageSize <= 0) return emptyList()
+    val offset = (page.toLong() * pageSize).coerceIn(0L, size.toLong()).toInt()
+    return drop(offset).take(pageSize)
 }
