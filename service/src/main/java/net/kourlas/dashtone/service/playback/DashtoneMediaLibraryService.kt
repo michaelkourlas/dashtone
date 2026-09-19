@@ -77,6 +77,11 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
     private var mediaLibrarySession: MediaLibrarySession? = null
     private var libraryChangeObserver: LibraryChangeObserver? = null
 
+    // The bare ExoPlayer underneath QueueShufflePlayer, kept so PlaybackErrorRecoveryListener can
+    // reach ExoPlayer's own seek directly -- see its comment for why recovery skips take this route
+    // while every other caller goes through the wrapper.
+    private var exoPlayer: ExoPlayer? = null
+
     // Referenced by QueuePersistingListener (needs naturalOrder/isShuffled/currentGrouping
     // alongside the player's own live queue) and by the onShuffleChanged callback below -- a class
     // field, not a local val, for the same reason mediaLibrarySession is: both inner classes and
@@ -138,6 +143,7 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
             .setAudioAttributes(audioAttributes, /* handleAudioFocus= */ true)
             .setHandleAudioBecomingNoisy(true)
             .build()
+        this.exoPlayer = exoPlayer
         // The real ExoPlayer's shuffle flag is never touched (see QueueShufflePlayer), so a
         // shuffle-state change never fires EVENT_SHUFFLE_MODE_ENABLED_CHANGED on its own --
         // refresh the custom layout explicitly instead of relying on PlaybackStateSavingListener
@@ -310,6 +316,7 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
             session.release()
         }
         mediaLibrarySession = null
+        exoPlayer = null
         serviceScope.cancel()
         super.onDestroy()
     }
@@ -458,8 +465,15 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
             if (isPlaying) recovery.onPlaybackStarted()
         }
 
+        // Drives the bare ExoPlayer, reaching its own seek directly. QueueShufflePlayer routes
+        // seekToNext through DoubleTapNavigation, which pairs any two seeks arriving inside its
+        // 400ms window into one category jump and consumes the second -- right for a user tapping
+        // a steering-wheel button twice, wrong for the back-to-back failures a yanked USB stick
+        // produces, where it would swallow the very skip that gets playback moving again.
+        // QueuePersistingListener still observes the resulting transition through the wrapper, so
+        // queue persistence is unaffected by taking this route.
         override fun onPlayerError(error: PlaybackException) {
-            val player = mediaLibrarySession?.player ?: return
+            val player = exoPlayer ?: return
             when (recovery.onError(hasNextItem = player.hasNextMediaItem())) {
                 PlaybackErrorRecovery.Action.SkipToNext -> {
                     player.seekToNextMediaItem()
