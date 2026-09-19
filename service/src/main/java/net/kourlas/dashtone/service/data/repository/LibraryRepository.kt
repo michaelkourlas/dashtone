@@ -69,8 +69,8 @@ class LibraryRepository @Inject constructor(
      * [AppPreferences.hasCompletedFirstRun] already being set -- which genuinely happens, since a
      * Room schema-version bump (fallbackToDestructiveMigration) drops every table on next DB open
      * while that flag lives in DataStore, an entirely separate store the migration doesn't touch.
-     * Without this check, such an update would silently leave the browse tree empty until the user
-     * happened to hit "Rescan Library" themselves.
+     * Checking the table itself is what gets the library back after such an update, rather than
+     * leaving the browse tree empty until the user happens to hit "Rescan Library" themselves.
      *
      * Returns whether a scan actually happened, so callers that also want to catch up on ordinary
      * changes (see [LibraryBrowseTree.root]) know whether this already covered that or whether

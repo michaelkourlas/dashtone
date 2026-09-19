@@ -13,8 +13,7 @@ package net.kourlas.dashtone.service.shuffle
  * append new modes at the end rather than reordering.
  */
 enum class CategoryShuffleMode(val shuffleCategories: Boolean, val shuffleSongs: Boolean) {
-    /** Category order is randomized; each category's own songs still play in track order. This
-     * was "Shuffle Albums" etc.'s only behavior before this setting existed. */
+    /** Category order is randomized; each category's own songs still play in track order. */
     CATEGORIES(shuffleCategories = true, shuffleSongs = false),
 
     /** Categories play in their natural order; within each one, songs are shuffled. */

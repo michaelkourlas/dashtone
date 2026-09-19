@@ -30,9 +30,9 @@ class MediaStoreLibraryScanner @Inject constructor(
     // an explicit user-triggered rescan.
     private val scanMutex = Mutex()
 
-    // Not a real constructor dependency -- Hilt only needs to satisfy the params above, and this
-    // stays a plain property specifically so tests can override it directly on the instance
-    // (no fake binding, no Robolectric) to control time in startupGraceDeadlineMs's check.
+    // A plain property, so a test can override it directly on the instance to control time in
+    // startupGraceDeadlineMs's check -- no fake binding, no Robolectric. Hilt only has to satisfy
+    // the constructor params above.
     internal var elapsedRealtimeMs: () -> Long = SystemClock::elapsedRealtime
 
     // Deleting a song the instant a scan doesn't find it is unsafe: at car ignition, MediaStore
@@ -48,9 +48,9 @@ class MediaStoreLibraryScanner @Inject constructor(
     // MediaStore right after boot, and protecting only that window -- rather than every scan for
     // the scanner's entire lifetime -- means a genuine deletion made during an ordinary,
     // already-running session is never held up waiting for a confirmation that doesn't apply to
-    // it. Once the grace period has passed, a missing song is deleted immediately, exactly as
-    // before this fix existed. [force] (an explicit, deliberate user action -- tapping "Rescan
-    // Library," or having just granted the permission this scan needed) skips the grace period
+    // it. Once the grace period has passed, a missing song is deleted immediately. [force] (an
+    // explicit, deliberate user action -- tapping "Rescan Library," or having just granted the
+    // permission this scan needed) skips the grace period
     // entirely regardless of how recently the scanner was created, since that action itself is
     // the user's own confirmation that now is the right time to sync.
     private var startupGraceDeadlineMs: Long? = null

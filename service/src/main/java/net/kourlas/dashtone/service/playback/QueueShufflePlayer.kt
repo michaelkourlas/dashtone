@@ -22,21 +22,14 @@ class QueueShufflePlayer(
     private val state: QueueShuffleState,
 ) : ForwardingPlayer(player) {
 
-    // ExoPlayer's own availableCommands computation ties next-item availability to whether
-    // there's actually somewhere to go: absent on a single-item queue unless repeat mode allows
-    // wrapping, and absent on the LAST item of a multi-item queue once repeat is off. car.media
-    // doesn't grey out a command it doesn't have -- it drops the button and reflows the whole
-    // row, including repeat and shuffle's position, so every one of those cases visibly shuffled
-    // the controls around (repeat toggling on a single-track queue; simply reaching the last song
-    // in a list; a queue that's just one song to begin with). Forcing next-item to always be
-    // available whenever there's at least one item in the queue -- independent of repeat mode,
-    // current position, AND queue size -- keeps the row stable in every case, not just the
-    // multi-item ones. This is safe to force even when there's truly nowhere to go:
-    // Player.seekToNext()/seekToNextMediaItem() are documented as no-ops in that situation, so
-    // advertising the command as available doesn't risk misbehaving on tap, it just makes the
-    // button present-but-inert instead of vanishing -- car.media's closest equivalent to "visible
-    // but disabled" for a command it doesn't natively grey out. Only a genuinely empty queue (no
-    // current item at all, nothing to seek within) still drops it.
+    // ExoPlayer ties next-item availability to whether there is somewhere to go: absent on a
+    // single-item queue unless repeat mode wraps, and absent on the last item once repeat is off.
+    // car.media responds to a missing command by dropping the button and reflowing the whole row,
+    // repeat and shuffle included, so the controls visibly rearrange on reaching the last song, on
+    // a one-song queue, or on toggling repeat there. Advertising next-item whenever the queue
+    // holds anything keeps the row stable, and is safe where there is nowhere to go:
+    // seekToNext()/seekToNextMediaItem() are documented no-ops, so the button is present-but-inert
+    // -- car.media's closest equivalent to "visible but disabled". An empty queue still drops it.
     override fun getAvailableCommands(): Player.Commands {
         val base = super.getAvailableCommands()
         return if (mediaItemCount > 0) {
@@ -52,16 +45,13 @@ class QueueShufflePlayer(
         }
     }
 
-    // See DashtoneMediaLibraryService.onCreate's comment on the resumption-seeding block: a car
-    // host's connection handshake calls prepare() unconditionally, and an EMPTY ExoPlayer (nothing
-    // seeded yet -- e.g. a fresh install with no last-played song to resume) advances straight from
-    // STATE_IDLE to STATE_ENDED on that call, which the legacy bridge reports as STATE_STOPPED with
-    // null metadata: an active-looking mini-player bar with no title, art, or song behind it, even
-    // though nothing has ever played. Seeding with a resumption item closes this for a returning
-    // user, but there's nothing to seed with the very first time the app is used. Refusing to
-    // forward prepare() while the queue is genuinely empty keeps the player at STATE_IDLE (-> no
-    // bar) instead, and is a no-op for every real call site: every legitimate prepare() in this
-    // codebase always follows a setMediaItems() call, so mediaItemCount is already nonzero by then.
+    // A car host's connection handshake calls prepare() unconditionally, and an empty ExoPlayer
+    // advances straight from STATE_IDLE to STATE_ENDED on that call, which the legacy bridge
+    // reports as STATE_STOPPED with null metadata: an active-looking mini-player bar with no
+    // title, art or song behind it. Seeding the last queue covers a returning user (see
+    // DashtoneMediaLibraryService.onCreate), leaving a fresh install with nothing to seed. Holding
+    // prepare() back on an empty queue keeps the player at STATE_IDLE, and costs nothing at any
+    // real call site: every legitimate prepare() here follows a setMediaItems().
     override fun prepare() {
         if (mediaItemCount == 0) return
         super.prepare()

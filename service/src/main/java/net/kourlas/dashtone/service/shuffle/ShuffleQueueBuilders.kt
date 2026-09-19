@@ -50,9 +50,9 @@ class GroupedQueueBuilder(private val settings: ShuffleSettings) : ShuffleQueueB
                 random = random,
             )
 
-            // No separate Genre/AlbumArtist entity+DAO exists (see SongEntity.genreName's doc
-            // comment), so these group directly by the song's own denormalized string field
-            // rather than by a foreign-key id like Album/Artist do.
+            // These group by the song's own denormalized string field, where Album/Artist group
+            // by a foreign-key id -- genre and album artist have a string on SongEntity and no
+            // entity of their own (see SongEntity.genreName's doc comment).
             Grouping.GENRE -> buildGroups(
                 songs = songs,
                 naturalCategoryOrder = songs.map { it.genreName ?: UNKNOWN_GENRE }.distinct().sorted(),

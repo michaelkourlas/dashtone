@@ -16,7 +16,7 @@ import net.kourlas.dashtone.service.R
  * COMMAND_SET_SHUFFLE_MODE: confirmed by reading MediaSessionLegacyStub's actual translation code
  * that the legacy PlaybackStateCompat bridge -- which is what car hosts like this one read their
  * custom action buttons from -- only ever converts CommandButtons whose sessionCommand is set; a
- * button bound directly to a Player.Command (the first attempt here) is silently dropped by that
+ * button bound directly to a Player.Command is silently dropped by that
  * translation and never reaches the car host at all, regardless of how it renders for a modern
  * Media3 controller. [DashtoneLibrarySessionCallback.onCustomCommand] handles the resulting tap.
  */

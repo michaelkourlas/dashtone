@@ -26,9 +26,9 @@ internal interface AlbumArtProviderEntryPoint {
  * separate app/process and can only load [android.media.MediaMetadata.artworkUri] via a real
  * content:// provider, not a raw file path or in-memory bitmap.
  *
- * Not a standard @AndroidEntryPoint target: ContentProviders can be created before the Hilt
- * Application component has finished attaching, so dependencies are pulled via
- * [EntryPointAccessors] in [onCreate] instead of field injection.
+ * Dependencies arrive through [EntryPointAccessors] in [onCreate], since a ContentProvider can be
+ * created before the Hilt Application component has finished attaching, which is earlier than
+ * @AndroidEntryPoint field injection is ready for.
  */
 class AlbumArtContentProvider : ContentProvider() {
 

@@ -18,9 +18,8 @@ import net.kourlas.dashtone.service.shuffle.Grouping
  * [onShuffleChanged] fires whenever [isShuffled] actually changes, no matter which setter caused
  * it. A real ExoPlayer shuffle-flag change never fires its own event (see [QueueShufflePlayer]'s
  * class doc), so refreshing the shuffle command button's icon has no other trigger to piggyback
- * on -- putting that refresh here, rather than leaving each call site responsible for remembering
- * to also invoke a callback, is what keeps [setShuffled] (a queue-establishing write, not a
- * toggle) from silently leaving a stale icon the way it originally did.
+ * on. Living here rather than at each call site, it covers [setShuffled] too -- a
+ * queue-establishing write rather than a toggle, and just as able to leave the icon stale.
  */
 class QueueShuffleState(private val onShuffleChanged: (Boolean) -> Unit = {}) {
     var naturalOrder: List<MediaItem> = emptyList()

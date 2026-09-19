@@ -53,20 +53,18 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
     @Inject
     lateinit var audioPermissionMonitor: AudioPermissionMonitor
 
-    // Dispatchers.Default, not Main: verified on-device that a Main-dispatched scope deadlocks
-    // here. Legacy MediaBrowserServiceCompat clients (car head units, Android Auto) reach this
-    // session through Media3's compatibility bridge, which dispatches onGetLibraryRoot/
-    // onGetChildren from the main thread in a way that never yields it back to process a
-    // Main-dispatched coroutine's own resumption -- the callback's future never completes and
-    // the browse tree silently stays empty. Off-main dispatch sidesteps the deadlock entirely.
+    // Dispatchers.Default: verified on-device that a Main-dispatched scope deadlocks here. Legacy
+    // MediaBrowserServiceCompat clients (car head units, Android Auto) reach this session through
+    // Media3's compatibility bridge, which dispatches onGetLibraryRoot/onGetChildren from the main
+    // thread without ever yielding it back to resume a Main-dispatched coroutine -- the callback's
+    // future never completes and the browse tree stays empty.
     //
-    // The exception handler matters independently of that: every serviceScope.launch below is
-    // fire-and-forget (permission monitoring, category-shuffle-mode sync, repeat-mode restore,
-    // resumption seeding) -- none of it is essential to the session existing, so a failure in any
-    // one of them degrading silently is far better than what a SupervisorJob alone gives you here.
-    // SupervisorJob only stops a child's failure from cancelling ITS SIBLINGS; an uncaught
-    // exception in a launch{} with no result ever consumed still propagates to the thread's
-    // default uncaught-exception handler, which on Android means the whole process dies.
+    // The exception handler earns its place separately. SupervisorJob only stops one child's
+    // failure from cancelling its siblings; an uncaught exception in a launch{} whose result
+    // nobody consumes still reaches the thread's default handler, which on Android kills the
+    // process. Every launch below is fire-and-forget (permission monitoring, shuffle-mode sync,
+    // repeat-mode restore, resumption seeding), so degrading one quietly beats taking the app
+    // down with it.
     private val serviceScope = CoroutineScope(
         SupervisorJob() + Dispatchers.Default +
             CoroutineExceptionHandler { context, throwable ->
@@ -88,21 +86,18 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
     // this callback need to reach it after onCreate() has returned.
     private lateinit var queueShuffleState: QueueShuffleState
 
-    // The OS calls this when it STARTS this service directly (startService/startForegroundService
-    // -- e.g. the car head unit's own "resume last media source" flow on ignition); a plain
-    // bindService() connection, the ordinary path for car.media just browsing the library, goes
-    // straight to onCreate() instead. That's exactly the case Media3's own automatic notification
-    // handling misses: MediaNotificationManager calls startForeground() once there's actual
-    // playback to show a notification for, which requires something to resume (see
-    // PlaybackResumptionProvider.resumptionState) -- an empty library or a fresh install has
-    // nothing to offer it. Android requires startForeground() within a few seconds of a
-    // startForegroundService() call regardless of whether anything ever ends up playing; a
-    // service that misses that deadline is killed with ForegroundServiceDidNotStartInTimeException,
-    // a system_server-triggered kill delivered outside the normal uncaught-exception path with no
-    // crash dialog and no ANR to explain it. Calling startForeground() unconditionally and
-    // immediately here, before any of onCreate()'s async work, satisfies that deadline regardless
-    // of how the rest of startup resolves; the placeholder notification below is superseded by
-    // Media3's own real one the moment actual playback state exists.
+    // Reached when the OS starts this service directly (the head unit's "resume last media source"
+    // flow on ignition, say); a plain bindService() connection, which is how car.media browses the
+    // library, goes straight to onCreate(). Android then requires startForeground() within a few
+    // seconds whether or not anything ends up playing, and a service that misses the deadline is
+    // killed with ForegroundServiceDidNotStartInTimeException -- a system_server kill delivered
+    // outside the normal uncaught-exception path, with no crash dialog and no ANR to explain it.
+    //
+    // Media3's own handling covers this only once there is playback to show a notification for,
+    // which needs something to resume (see PlaybackResumptionProvider.resumptionState) -- an empty
+    // library or a fresh install offers it nothing. Calling startForeground() here, before any of
+    // onCreate()'s async work, meets the deadline however the rest of startup resolves; Media3
+    // supersedes the placeholder below the moment real playback state exists.
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         ensureForegroundStarted()
         return super.onStartCommand(intent, flags, startId)
@@ -151,14 +146,12 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
         // ones that go through QueueShufflePlayer's toggle) so establishing a shuffle-preset queue
         // via DashtoneLibrarySessionCallback also refreshes the icon, not only a live toggle.
         //
-        // Posted through mainHandler rather than called directly: this callback can now fire from
-        // two very different call sites. A live QueueShufflePlayer.setShuffleModeEnabled() toggle
-        // is invoked by the framework on the main thread, so calling setCustomLayout() inline was
-        // always safe there -- but DashtoneLibrarySessionCallback.resolveQueue() (which also
-        // mutates this state, e.g. tapping "Shuffle Albums") runs on serviceScope, which is
-        // deliberately Dispatchers.Default, not Main (see its own comment above). Touching the
-        // player/session from that thread silently failed to update the icon rather than crashing,
-        // which is what made this bug easy to miss.
+        // Posted through mainHandler because this callback fires from two call sites on different
+        // threads: a live QueueShufflePlayer.setShuffleModeEnabled() toggle arrives on the main
+        // thread, while DashtoneLibrarySessionCallback.resolveQueue() (tapping "Shuffle Albums",
+        // say) runs on serviceScope, which is deliberately Dispatchers.Default (see its own
+        // comment above). Touching the player or session off the main thread leaves the icon
+        // stale and raises nothing.
         //
         // persistQueueState() rides along in the same post: it's also the only hook that catches a
         // shuffle toggle on a queue too small to actually reorder (QueueShufflePlayer.
@@ -325,19 +318,16 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
     // documented on the repeat-mode restore above, just for setPlaybackException instead of a
     // direct player property.
     //
-    // The not-granted branch reports a plain PlaybackException, carrying just the message string
-    // and error code -- an earlier version also attached ERROR_RESOLUTION_ACTION_LABEL/
-    // ACTION_INTENT extras, building a "Grant Access" resolution PendingIntent that a car host
-    // could render as a button and hand back control through. On-device evidence favors the
-    // simpler form: a real vehicle with permission denied showed no permission dialog at all,
-    // while Dashtone's own diagnostics confirmed its side of the same connection completed
-    // cleanly through onGetChildren(root) and beyond -- consistent with the resolution-action
-    // extras being the piece that broke, since rendering them is entirely up to the connecting
-    // host's own error-card code, unlike a bare exception, which is a far more standard, far more
-    // exercised corner of the same API across hosts. Settings already gives a reliable path to
-    // grant the permission (see SettingsActivity's manifest entry), reachable through the car's
-    // native "app settings" affordance independent of whether this session ever connects, so the
-    // resolution card was a convenience on top of that, not the only way to get the app working.
+    // The not-granted branch reports a plain PlaybackException carrying just the message string
+    // and error code. Attaching ERROR_RESOLUTION_ACTION_LABEL/ACTION_INTENT extras as well would
+    // offer a car host a "Grant Access" button to hand control back through, but on-device
+    // evidence favours the simpler form: a real vehicle with permission denied showed no
+    // permission dialog at all, while Dashtone's own diagnostics confirmed its side of that same
+    // connection completed cleanly through onGetChildren(root) and beyond. Rendering those extras
+    // is entirely up to the host's own error-card code, where a bare exception is a far more
+    // exercised corner of the same API. Settings reaches the permission reliably either way (see
+    // SettingsActivity's manifest entry), through the car's native "app settings" affordance and
+    // independent of whether this session ever connects.
     private suspend fun updatePermissionState(session: MediaLibrarySession, granted: Boolean) {
         if (granted) {
             withContext(Dispatchers.Main) { session.setPlaybackException(null) }

@@ -25,21 +25,16 @@ class LibraryBrowseTree @Inject constructor(
     private val mediaItemMapper: MediaItemMapper,
 ) {
     // The car host fetches root's direct children (the tab strip) exactly once per connection and
-    // caches them on its own side for that connection's whole lifetime -- confirmed by five
-    // separate failed live-refresh attempts (see DashtoneMediaLibraryService's comment) and
-    // independently corroborated by multiple still-open upstream bugs against Google's own Media3
-    // host implementations (github.com/androidx/media/issues/644, /561, /3253). That staleness
-    // can't be fixed from app code, but it MUST be made safe: enabledCategoriesInOrder() used to
-    // re-read categoryOrder/disabledCategories live on every call, so a settings change mid-
-    // connection could make the (live, uncached) "More" list disagree with the (host-cached,
-    // stale) tab strip -- e.g. a category just moved out of the tabs into "More" would briefly
-    // appear in both places at once. Snapshotting the enabled/ordered category list inside root()
-    // -- the same call a host makes when it (re)builds its tab strip -- and reusing that exact
-    // snapshot for every children() call until the next root() call guarantees the tab strip and
-    // "More" always describe the identical settings state, even if that state is one change behind
-    // the latest. That is what "changes apply the next time you open Dashtone" concretely means:
-    // not a hope that the host will refresh, but a structural guarantee that it can never show two
-    // different answers for the same category at once.
+    // caches them for that connection's whole lifetime -- confirmed by five separate failed
+    // live-refresh attempts (see DashtoneMediaLibraryService's comment) and corroborated by
+    // still-open upstream bugs against Google's own Media3 hosts
+    // (github.com/androidx/media/issues/644, /561, /3253). App code can't fix that staleness, so
+    // it has to be safe: root() snapshots the enabled/ordered category list -- the same call a
+    // host makes when it builds its tab strip -- and every children() call reads that snapshot
+    // until the next root() call. Reading the settings live instead would let a mid-connection
+    // change put a category in both the tab strip and "More" at once, since only one of the two
+    // would be stale. The snapshot makes "changes apply the next time you open Dashtone" a
+    // structural guarantee rather than a hope that the host will refresh.
     private val categorySnapshot = AtomicReference<List<BrowseCategory>?>(null)
 
     suspend fun root(): MediaItem {
@@ -119,8 +114,8 @@ class LibraryBrowseTree @Inject constructor(
 
         MediaIds.SONGS_ROOT -> rootSentinels(MediaIds.SONGS_ROOT) + mapSongs(libraryRepository.songs.first())
 
-        // No shuffle sentinel here: playlists are user-curated file order, not a shuffleable
-        // library-wide category like the other roots.
+        // Playlists open straight onto their entries: a playlist is curated file order, where the
+        // other roots are library-wide categories a shuffle sentinel can act on.
         MediaIds.PLAYLISTS_ROOT -> libraryRepository.playlists.first().map { mediaItemMapper.toMediaItem(it) }
 
         else -> loadContainerChildren(parentId)
@@ -422,11 +417,9 @@ class LibraryBrowseTree @Inject constructor(
     // MediaLibrarySession.Callback.onSubscribe() calls onGetItem(parentId) to confirm the parent is
     // browsable before registering a subscription, and silently drops the subscription if that
     // lookup fails (confirmed against Media3 1.10.1's own MediaLibrarySessionImpl.
-    // onSubscribeOnHandler source: "Remove subscription in case of an error"). This used to only
-    // handle song ids, so subscribing to any category tab (root/albums, root/artists, an album's
-    // track list, etc.) was silently rejected -- notifyChildrenChanged for those ids was
-    // permanently a no-op as a result, which is what made content only ever refresh after
-    // navigating away from a tab and back (a fresh subscribe), never in place.
+    // onSubscribeOnHandler source: "Remove subscription in case of an error"). Resolving category
+    // tabs, album track lists and the rest here is therefore what makes notifyChildrenChanged work
+    // for them at all, letting content refresh in place rather than on a fresh subscribe.
     suspend fun item(mediaId: String): MediaItem? {
         MediaIds.songIdOrNull(mediaId)?.let { songId ->
             val song = libraryRepository.songById(songId) ?: return null

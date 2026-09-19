@@ -307,18 +307,17 @@ class MediaItemMapper @Inject constructor(
             .build()
     }
 
-    // Deliberately not setting DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS here. A legacy
-    // MediaBrowserCompat host (car.media) renders COMPLETION_STATUS_NOT_PLAYED as a per-item "new"
-    // dot -- the right cue for episodic content (podcasts, audiobooks), but on a music library it
-    // shows on every single track, since Dashtone has no per-song listening-progress feature:
-    // QueueStateStore remembers the whole current queue for resuming Dashtone itself, but never a
-    // per-song position. A previous attempt reported NOT_PLAYED/0.0 unconditionally
-    // to keep a just-finished or skipped-away-from track from showing a stale host-cached progress
-    // bar, but that traded a rare stale-progress edge case for a permanent, unwanted dot on every
-    // song in every list -- the worse tradeoff for a music app.
+    // DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS stays unset. A legacy MediaBrowserCompat host
+    // (car.media) renders COMPLETION_STATUS_NOT_PLAYED as a per-item "new" dot -- the right cue
+    // for episodic content (podcasts, audiobooks). On a music library it lands on every single
+    // track, since Dashtone tracks no per-song listening progress: QueueStateStore remembers the
+    // whole current queue for resuming Dashtone itself, never a position within a song. Reporting
+    // NOT_PLAYED/0.0 unconditionally would clear a stale host-cached progress bar on a
+    // skipped-away-from track, at the price of that permanent dot on every song in every list.
 
-    // No URI: selecting this triggers DashtoneLibrarySessionCallback.onAddMediaItems, which
-    // resolves it into the real materialized queue rather than playing it directly. iconName is
+    // Carries a media id alone, so selecting it reaches
+    // DashtoneLibrarySessionCallback.onAddMediaItems, which resolves it into the real materialized
+    // queue. iconName is
     // shared across every "Play All X"/"Shuffle X" entry (PLAY_ALL_ICON/SHUFFLE_ICON below) rather
     // than per-category: the category is already carried by the title and by which folder the
     // entry sits in, so a generic play/shuffle glyph pairs the two sentinel rows the same way most

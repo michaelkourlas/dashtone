@@ -79,10 +79,10 @@ class AppPreferences @Inject constructor(
     }
 
     /** What "Shuffle X" means for any category-grouped browse entry -- see
-     * [CategoryShuffleMode]'s doc comment. Defaults to [CategoryShuffleMode.CATEGORIES], preserving
-     * the only behavior "Shuffle Albums" etc. had before this setting existed, so upgrading the app
-     * doesn't change existing behavior out from under anyone. An unrecognized stored value (e.g. a
-     * downgrade after a future mode is added) falls back to that same default rather than crashing. */
+     * [CategoryShuffleMode]'s doc comment. [CategoryShuffleMode.CATEGORIES] is the default because
+     * it shuffles the axis a car listener notices most, leaving each album playable in its own
+     * order. An unrecognized stored value (a downgrade past a mode added later, say) falls back to
+     * that same default rather than crashing. */
     val categoryShuffleMode: Flow<CategoryShuffleMode> = dataStore.data.map { prefs ->
         prefs[CATEGORY_SHUFFLE_MODE]
             ?.let { name -> CategoryShuffleMode.entries.find { it.name == name } }

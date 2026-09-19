@@ -415,9 +415,9 @@ class DashtoneLibrarySessionCallback(
         MediaSession.MediaItemsWithStartPosition(resumption.items, resumption.startIndex, 0L)
     }
 
-    // Not chained onto onSearch's result: onGetSearchResult can be called on its own (e.g. from
-    // the legacy MediaBrowserCompat.search() path), so it must be able to compute results from the
-    // query alone rather than relying on a prior onSearch call having cached anything.
+    // Computes its results from the query alone, since onGetSearchResult can arrive on its own
+    // (from the legacy MediaBrowserCompat.search() path, for one) with no prior onSearch call to
+    // have cached anything.
     override fun onSearch(
         session: MediaLibrarySession,
         browser: MediaSession.ControllerInfo,

@@ -15,15 +15,15 @@ class MediaStorePlaylistScanner @Inject constructor(
     private val playlistDao: PlaylistDao,
 ) : PlaylistScanner {
 
-    // Not a real constructor dependency -- see MediaStoreLibraryScanner.elapsedRealtimeMs's own
-    // comment for why this stays a plain, test-overridable property instead.
+    // A plain, test-overridable property -- see MediaStoreLibraryScanner.elapsedRealtimeMs's own
+    // comment.
     internal var elapsedRealtimeMs: () -> Long = SystemClock::elapsedRealtime
 
     // See MediaStoreLibraryScanner.startupGraceDeadlineMs's own doc comment for the full
     // reasoning: a playlist missing from a scan run soon after this scanner was created (right
     // after car ignition, most notably) isn't deleted, since MediaStore may simply not have
     // finished indexing yet; the same scan run later in an already-running session deletes
-    // immediately, exactly as before this fix existed.
+    // immediately.
     private var startupGraceDeadlineMs: Long? = null
 
     override suspend fun scanPlaylists(
