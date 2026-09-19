@@ -1,5 +1,6 @@
 package net.kourlas.dashtone.service.playback
 
+import android.content.Context
 import androidx.media.utils.MediaConstants
 import androidx.test.core.app.ApplicationProvider
 import net.kourlas.dashtone.service.data.local.AlbumEntity
@@ -19,7 +20,13 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class MediaItemMapperTest {
 
-    private val mapper = MediaItemMapper(ApplicationProvider.getApplicationContext())
+    private val context: Context = ApplicationProvider.getApplicationContext()
+    private val mapper = MediaItemMapper(context)
+
+    // Icon URIs name the running app's own package, so the expected authority is read from the
+    // same context the mapper holds. Under Robolectric that is :service's namespace; in the app it
+    // is the real applicationId, which is the value these URIs have to carry for car.media to
+    // resolve them. See MediaItemMapper.iconUri.
 
     @Test
     fun `rootItem is browsable, not playable, and lists as LIST style`() {
@@ -232,7 +239,7 @@ class MediaItemMapperTest {
         )
 
         val uris = items.map { it.mediaMetadata.artworkUri }
-        assertTrue(uris.all { it != null && it.scheme == "android.resource" && it.authority == "net.kourlas.dashtone" })
+        assertTrue(uris.all { it != null && it.scheme == "android.resource" && it.authority == context.packageName })
         // Must be the symbolic "drawable/<name>" form, not a raw packed resource int -- a raw int
         // crashed car.media's own process live (UriUtils.getDrawable resolves these by name via
         // Resources.getIdentifier(), not as an already-packed ID). See MediaItemMapper's iconUri.
@@ -251,7 +258,7 @@ class MediaItemMapperTest {
     @Test
     fun `More root item carries its own distinct android_resource icon URI`() {
         val uri = mapper.moreRootItem().mediaMetadata.artworkUri
-        assertEquals("android.resource://net.kourlas.dashtone/drawable/ic_category_more", uri.toString())
+        assertEquals("android.resource://${context.packageName}/drawable/ic_category_more", uri.toString())
     }
 
     // Unlike the 12 category icons (one distinct icon each), every play-all sentinel shares one
@@ -270,8 +277,8 @@ class MediaItemMapperTest {
 
         assertEquals(1, playAllUris.toSet().size)
         assertEquals(1, shuffleUris.toSet().size)
-        assertTrue(playAllUris.all { it != null && it.scheme == "android.resource" && it.authority == "net.kourlas.dashtone" })
-        assertTrue(shuffleUris.all { it != null && it.scheme == "android.resource" && it.authority == "net.kourlas.dashtone" })
+        assertTrue(playAllUris.all { it != null && it.scheme == "android.resource" && it.authority == context.packageName })
+        assertTrue(shuffleUris.all { it != null && it.scheme == "android.resource" && it.authority == context.packageName })
         assertEquals("ic_action_play_all", playAllUris.first()!!.lastPathSegment)
         assertEquals("ic_action_shuffle", shuffleUris.first()!!.lastPathSegment)
     }

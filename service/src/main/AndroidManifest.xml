@@ -42,7 +42,7 @@
          is not sensitive data. -->
         <provider
             android:name="net.kourlas.dashtone.service.albumart.AlbumArtContentProvider"
-            android:authorities="net.kourlas.dashtone.service.albumart"
+            android:authorities="${applicationId}.albumart"
             android:exported="true"
             android:grantUriPermissions="true"
             tools:ignore="ExportedContentProvider" />

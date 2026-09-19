@@ -361,11 +361,12 @@ class MediaItemMapper @Inject constructor(
     // name segment through Resources.getIdentifier(), not by treating it as an already-packed ID
     // (which also sidesteps :service's resource IDs being reassigned when merged into :app's final
     // table at build time -- name-based lookup doesn't care what the numeric ID ends up being).
-    // The package segment must be the app's actual runtime applicationId
-    // ("net.kourlas.dashtone") -- not this module's own namespace
-    // ("net.kourlas.dashtone.service") -- since :service's resources are merged into :app's final
-    // resource table at build time and only exist under the app's real package at runtime.
-    private fun iconUri(name: String): Uri = "android.resource://net.kourlas.dashtone/drawable/$name".toUri()
+    // The package segment is read from the running app rather than written out: :service's
+    // resources are merged into :app's final resource table at build time and exist only under the
+    // app's real applicationId at runtime, which this module's own namespace
+    // ("net.kourlas.dashtone.service") is not, and which a variant carrying an applicationIdSuffix
+    // would change out from under a literal.
+    private fun iconUri(name: String): Uri = "android.resource://${context.packageName}/drawable/$name".toUri()
 
     private fun childStyleExtras(browsableChildStyle: Int? = null, playableChildStyle: Int? = null): Bundle =
         Bundle().apply {
@@ -373,7 +374,7 @@ class MediaItemMapper @Inject constructor(
             playableChildStyle?.let { putInt(MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_PLAYABLE, it) }
         }
 
-    private fun albumArtUri(albumId: Long): Uri = AlbumArtUris.forAlbum(albumId)
+    private fun albumArtUri(albumId: Long): Uri = AlbumArtUris.forAlbum(context, albumId)
 
     private companion object {
         const val LIST = MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM

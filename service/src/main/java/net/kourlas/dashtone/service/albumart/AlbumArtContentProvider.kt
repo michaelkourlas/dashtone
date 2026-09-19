@@ -46,7 +46,7 @@ class AlbumArtContentProvider : ContentProvider() {
     }
 
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor? {
-        val albumId = AlbumArtUris.albumIdOrNull(uri) ?: return null
+        val albumId = context?.let { AlbumArtUris.albumIdOrNull(it, uri) } ?: return null
         val cached = cache.file(albumId)
         // Extraction happens once per album and the result is published through the cache, which
         // makes the write atomic -- see AlbumArtCache.write for why that matters when a host
