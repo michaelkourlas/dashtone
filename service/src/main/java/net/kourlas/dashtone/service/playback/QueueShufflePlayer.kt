@@ -8,7 +8,6 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import net.kourlas.dashtone.service.shuffle.CategoryShuffleMode
 import net.kourlas.dashtone.service.shuffle.Grouping
-import kotlin.random.Random
 
 /**
  * ExoPlayer's own shuffle can't express "shuffle albums but keep in-album order" (see
@@ -174,7 +173,7 @@ internal fun reorderForShuffleToggle(
         groupedShuffleLeadingWithCurrent(naturalOrder, grouping, categoryShuffleMode, currentMediaId)
     } else {
         val current = naturalOrder.firstOrNull { it.mediaId == currentMediaId }
-        val rest = naturalOrder.filterNot { it.mediaId == currentMediaId }.shuffled(Random(System.nanoTime()))
+        val rest = naturalOrder.filterNot { it.mediaId == currentMediaId }.shuffled()
         if (current != null) listOf(current) + rest else rest
     }
     return pool to 0
@@ -202,7 +201,7 @@ private fun groupedShuffleLeadingWithCurrent(
 
     val otherCategories = naturalCategoryOrder.filterNot { it == currentCategoryKey }
     val orderedOtherCategories =
-        if (mode.shuffleCategories) otherCategories.shuffled(Random(System.nanoTime())) else otherCategories
+        if (mode.shuffleCategories) otherCategories.shuffled() else otherCategories
     val orderedCategories =
         if (currentCategoryKey != null) listOf(currentCategoryKey) + orderedOtherCategories else orderedOtherCategories
 
@@ -210,9 +209,9 @@ private fun groupedShuffleLeadingWithCurrent(
         val categoryItems = byCategory[key].orEmpty()
         if (key == currentCategoryKey && currentItem != null) {
             val rest = categoryItems.filterNot { it.mediaId == currentMediaId }
-            listOf(currentItem) + if (mode.shuffleSongs) rest.shuffled(Random(System.nanoTime())) else rest
+            listOf(currentItem) + if (mode.shuffleSongs) rest.shuffled() else rest
         } else {
-            if (mode.shuffleSongs) categoryItems.shuffled(Random(System.nanoTime())) else categoryItems
+            if (mode.shuffleSongs) categoryItems.shuffled() else categoryItems
         }
     }
 }
