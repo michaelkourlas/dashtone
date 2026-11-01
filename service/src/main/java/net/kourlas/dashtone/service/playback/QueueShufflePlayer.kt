@@ -20,6 +20,7 @@ import net.kourlas.dashtone.service.shuffle.Grouping
 class QueueShufflePlayer(
     player: Player,
     private val state: QueueShuffleState,
+    private val onStop: () -> Unit = {},
 ) : ForwardingPlayer(player) {
 
     // ExoPlayer ties next-item availability to whether there is somewhere to go: absent on a
@@ -55,6 +56,11 @@ class QueueShufflePlayer(
     override fun prepare() {
         if (mediaItemCount == 0) return
         super.prepare()
+    }
+
+    override fun stop() {
+        onStop()
+        super.stop()
     }
 
     override fun getShuffleModeEnabled(): Boolean = state.isShuffled

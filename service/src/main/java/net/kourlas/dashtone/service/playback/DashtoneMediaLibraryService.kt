@@ -11,6 +11,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -74,6 +75,7 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var mediaLibrarySession: MediaLibrarySession? = null
     private var libraryChangeObserver: LibraryChangeObserver? = null
+    private val errorRecoveryListener = PlaybackErrorRecoveryListener()
 
     // The bare ExoPlayer underneath QueueShufflePlayer, kept so PlaybackErrorRecoveryListener can
     // reach ExoPlayer's own seek directly -- see its comment for why recovery skips take this route
@@ -168,9 +170,13 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
                 persistQueueState()
             }
         }
-        val player = QueueShufflePlayer(exoPlayer, queueShuffleState)
+        val player = QueueShufflePlayer(
+            exoPlayer,
+            queueShuffleState,
+            onStop = errorRecoveryListener::cancelPendingRetry,
+        )
         player.addListener(QueuePersistingListener())
-        player.addListener(PlaybackErrorRecoveryListener())
+        player.addListener(errorRecoveryListener)
 
         val callback = DashtoneLibrarySessionCallback(
             browseTree,
@@ -304,6 +310,7 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
     override fun onDestroy() {
         libraryChangeObserver?.stop()
         libraryChangeObserver = null
+        errorRecoveryListener.cancelPendingRetry()
         mediaLibrarySession?.let { session ->
             session.player.release()
             session.release()
@@ -438,39 +445,60 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
         }
     }
 
-    // A corrupt file, an unsupported codec, or (very plausible in a car -- someone yanks a USB
-    // stick mid-drive) a source that just vanished must not leave playback dead in the water:
-    // without this, ExoPlayer surfaces the error and simply stops, and the only way out is the
-    // user manually picking a different track. Auto-advancing past the bad item, the same way a
-    // real music player would, keeps the queue moving. onIsPlayingChanged(true) is the signal that
-    // an item actually started playing -- as opposed to onMediaItemTransition, which fires the
-    // moment a broken item BECOMES current, before ExoPlayer has even tried (and failed) to play
-    // it -- so it's what resets the run of consecutive failures back to zero. The cap exists so a
-    // queue that's gone entirely bad (e.g. the whole removable volume it lived on disappeared)
-    // gives up cleanly instead of machine-gunning through every remaining item.
+    // Without this listener, ExoPlayer reports a playback error and stops, and the only way out is
+    // for the user to pick a different track. The decision itself (retry the current item, skip,
+    // or stop) lives in PlaybackErrorRecovery. onIsPlayingChanged(true) is the signal that an item
+    // actually started playing -- onMediaItemTransition fires the moment a broken item becomes
+    // current, before ExoPlayer has tried to play it -- so it is what resets the failure counters.
     private inner class PlaybackErrorRecoveryListener : Player.Listener {
         private val recovery = PlaybackErrorRecovery()
+        private val retryCurrentItem = Runnable { exoPlayer?.prepare() }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             if (isPlaying) recovery.onPlaybackStarted()
         }
 
+        // A pause during the wait cancels the retry. A later play command prepares the player
+        // again by itself: MediaSession calls prepare() for a play command in STATE_IDLE.
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            if (!playWhenReady) cancelPendingRetry()
+        }
+
+        // A pending retry belongs to the item that failed, so a change of item (a manual skip,
+        // or a recovery skip below) cancels it.
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            mainHandler.removeCallbacks(retryCurrentItem)
+            recovery.onItemChanged()
+        }
+
         // Drives the bare ExoPlayer, reaching its own seek directly. QueueShufflePlayer routes
         // seekToNext through DoubleTapNavigation, which pairs any two seeks arriving inside its
         // 400ms window into one category jump and consumes the second -- right for a user tapping
-        // a steering-wheel button twice, wrong for the back-to-back failures a yanked USB stick
-        // produces, where it would swallow the very skip that gets playback moving again.
-        // QueuePersistingListener still observes the resulting transition through the wrapper, so
-        // queue persistence is unaffected by taking this route.
+        // a steering-wheel button twice, wrong for back-to-back failures, where it would swallow
+        // the very skip that gets playback moving again. QueuePersistingListener still observes
+        // the resulting transition through the wrapper, so queue persistence is unaffected by
+        // taking this route.
+        //
+        // A retry calls prepare() alone: after an error ExoPlayer keeps the current item, its
+        // position and playWhenReady, so playback resumes on its own once the source opens.
         override fun onPlayerError(error: PlaybackException) {
             val player = exoPlayer ?: return
-            when (recovery.onError(hasNextItem = player.hasNextMediaItem())) {
+            mainHandler.removeCallbacks(retryCurrentItem)
+            when (val action = recovery.onError(error.errorCode, hasNextItem = player.hasNextMediaItem())) {
+                is PlaybackErrorRecovery.Action.RetryCurrent ->
+                    mainHandler.postDelayed(retryCurrentItem, action.delayMs)
                 PlaybackErrorRecovery.Action.SkipToNext -> {
                     player.seekToNextMediaItem()
                     player.prepare()
                 }
                 PlaybackErrorRecovery.Action.GiveUp -> player.stop()
             }
+        }
+
+        // Also called by QueueShufflePlayer.stop(), since ExoPlayer keeps playWhenReady and the
+        // current item through a stop and so does not notify a listener of it.
+        fun cancelPendingRetry() {
+            mainHandler.removeCallbacks(retryCurrentItem)
         }
     }
 
