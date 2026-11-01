@@ -42,7 +42,6 @@ object DataModule {
             // user data that a schema-bump migration would need to preserve (see
             // LibraryRepository.ensureScanned for why an empty table after a wipe is at least
             // handled gracefully rather than silently).
-            .addMigrations(DashtoneDatabase.MIGRATION_10_11)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
 
