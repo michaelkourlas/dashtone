@@ -75,6 +75,7 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var mediaLibrarySession: MediaLibrarySession? = null
     private var libraryChangeObserver: LibraryChangeObserver? = null
+    private var storageMountObserver: StorageMountObserver? = null
     private val errorRecoveryListener = PlaybackErrorRecoveryListener()
 
     // The bare ExoPlayer underneath QueueShufflePlayer, kept so PlaybackErrorRecoveryListener can
@@ -269,6 +270,10 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
             mediaLibrarySession?.let { notifyLibraryChildrenChanged(it) }
         }.apply { start() }
 
+        // A volume that mounts while a retry waits is the most likely moment for the source to
+        // open, so the retry runs at once instead of at the end of its delay.
+        storageMountObserver = StorageMountObserver(this) { errorRecoveryListener.retryNow() }.apply { start() }
+
         // Settings changes (Browse Tabs order/enabled state) rely on the categorySnapshot
         // mechanism below, rather than notifyChildrenChanged(ROOT/MORE_ROOT, ...) here, to keep
         // the tab strip consistent: car.media's handling of ROOT's children is a confirmed,
@@ -310,6 +315,8 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
     override fun onDestroy() {
         libraryChangeObserver?.stop()
         libraryChangeObserver = null
+        storageMountObserver?.stop()
+        storageMountObserver = null
         errorRecoveryListener.cancelPendingRetry()
         mediaLibrarySession?.let { session ->
             session.player.release()
@@ -452,7 +459,11 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
     // current, before ExoPlayer has tried to play it -- so it is what resets the failure counters.
     private inner class PlaybackErrorRecoveryListener : Player.Listener {
         private val recovery = PlaybackErrorRecovery()
-        private val retryCurrentItem = Runnable { exoPlayer?.prepare() }
+        private var retryPending = false
+        private val retryCurrentItem = Runnable {
+            retryPending = false
+            exoPlayer?.prepare()
+        }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             if (isPlaying) recovery.onPlaybackStarted()
@@ -467,7 +478,7 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
         // A pending retry belongs to the item that failed, so a change of item (a manual skip,
         // or a recovery skip below) cancels it.
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            mainHandler.removeCallbacks(retryCurrentItem)
+            cancelPendingRetry()
             recovery.onItemChanged()
         }
 
@@ -483,10 +494,12 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
         // position and playWhenReady, so playback resumes on its own once the source opens.
         override fun onPlayerError(error: PlaybackException) {
             val player = exoPlayer ?: return
-            mainHandler.removeCallbacks(retryCurrentItem)
+            cancelPendingRetry()
             when (val action = recovery.onError(error.errorCode, hasNextItem = player.hasNextMediaItem())) {
-                is PlaybackErrorRecovery.Action.RetryCurrent ->
+                is PlaybackErrorRecovery.Action.RetryCurrent -> {
+                    retryPending = true
                     mainHandler.postDelayed(retryCurrentItem, action.delayMs)
+                }
                 PlaybackErrorRecovery.Action.SkipToNext -> {
                     player.seekToNextMediaItem()
                     player.prepare()
@@ -499,6 +512,13 @@ class DashtoneMediaLibraryService : MediaLibraryService() {
         // current item through a stop and so does not notify a listener of it.
         fun cancelPendingRetry() {
             mainHandler.removeCallbacks(retryCurrentItem)
+            retryPending = false
+        }
+
+        fun retryNow() {
+            if (!retryPending) return
+            mainHandler.removeCallbacks(retryCurrentItem)
+            retryCurrentItem.run()
         }
     }
 
