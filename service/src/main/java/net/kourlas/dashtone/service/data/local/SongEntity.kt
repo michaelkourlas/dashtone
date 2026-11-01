@@ -57,4 +57,12 @@ data class SongEntity(
      * [net.kourlas.dashtone.service.data.mediastore.fullFolderPathOf]. Null on API < 29, where
      * MediaStore has no RELATIVE_PATH column (same gating as [genreName] on API < 30). */
     val folderPath: String? = null,
+    /** MediaStore's VOLUME_NAME for the volume that holds this song (see
+     * [net.kourlas.dashtone.service.data.mediastore.RawAudioRow.volumeName]). A scan reads it to
+     * keep songs on a volume that is not mounted -- see
+     * [net.kourlas.dashtone.service.data.mediastore.MediaStoreLibraryScanner]. Null on API < 29. */
+    val volumeName: String? = null,
 )
+
+/** The two columns a scan reads to decide whether a song that it did not find can be deleted. */
+data class SongIdAndVolume(val id: Long, val volumeName: String?)

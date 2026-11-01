@@ -29,6 +29,9 @@ interface SongDao {
     @Query("SELECT id FROM songs")
     suspend fun getAllIds(): List<Long>
 
+    @Query("SELECT id, volumeName FROM songs")
+    suspend fun getAllIdsAndVolumes(): List<SongIdAndVolume>
+
     /** Counting in SQL keeps the browse tree from loading every row just to report a list size --
      * see [net.kourlas.dashtone.service.playback.LibraryBrowseTree.childCount]. */
     @Query("SELECT COUNT(*) FROM songs")

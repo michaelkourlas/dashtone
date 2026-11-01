@@ -17,9 +17,11 @@ import net.kourlas.dashtone.service.data.local.DashtoneDatabase
 import net.kourlas.dashtone.service.data.local.PlaylistDao
 import net.kourlas.dashtone.service.data.local.QueueStateDao
 import net.kourlas.dashtone.service.data.local.SongDao
+import net.kourlas.dashtone.service.data.mediastore.AttachedVolumes
 import net.kourlas.dashtone.service.data.mediastore.ContentResolverMediaStoreAudioSource
 import net.kourlas.dashtone.service.data.mediastore.ContentResolverMediaStorePlaylistSource
 import net.kourlas.dashtone.service.data.mediastore.LibraryScanner
+import net.kourlas.dashtone.service.data.mediastore.MediaStoreAttachedVolumes
 import net.kourlas.dashtone.service.data.mediastore.MediaStoreAudioSource
 import net.kourlas.dashtone.service.data.mediastore.MediaStoreLibraryScanner
 import net.kourlas.dashtone.service.data.mediastore.MediaStorePlaylistScanner
@@ -40,6 +42,7 @@ object DataModule {
             // user data that a schema-bump migration would need to preserve (see
             // LibraryRepository.ensureScanned for why an empty table after a wipe is at least
             // handled gracefully rather than silently).
+            .addMigrations(DashtoneDatabase.MIGRATION_10_11)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
 
@@ -74,6 +77,9 @@ object DataModule {
 abstract class MediaStoreModule {
     @Binds
     abstract fun bindMediaStoreAudioSource(impl: ContentResolverMediaStoreAudioSource): MediaStoreAudioSource
+
+    @Binds
+    abstract fun bindAttachedVolumes(impl: MediaStoreAttachedVolumes): AttachedVolumes
 
     @Binds
     abstract fun bindLibraryScanner(impl: MediaStoreLibraryScanner): LibraryScanner

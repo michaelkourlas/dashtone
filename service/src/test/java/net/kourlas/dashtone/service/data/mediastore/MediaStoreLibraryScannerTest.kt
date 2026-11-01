@@ -29,6 +29,10 @@ class MediaStoreLibraryScannerTest {
     private lateinit var scanner: MediaStoreLibraryScanner
     private var fakeClockMs = 0L
 
+    // Null matches a platform that cannot list volumes, so tests that do not set it keep the
+    // time-only grace period.
+    private var mountedVolumes: Set<String>? = null
+
     @Before
     fun setUp() {
         songDao = FakeSongDao()
@@ -37,7 +41,9 @@ class MediaStoreLibraryScannerTest {
         source = FakeMediaStoreAudioSource()
         playlistScanner = FakePlaylistScanner()
         appPreferences = AppPreferences(FakeDataStore(emptyPreferences()))
-        scanner = MediaStoreLibraryScanner(source, playlistScanner, songDao, albumDao, artistDao, appPreferences)
+        scanner = MediaStoreLibraryScanner(
+            source, playlistScanner, songDao, albumDao, artistDao, appPreferences,
+        ) { mountedVolumes }
         scanner.elapsedRealtimeMs = { fakeClockMs }
     }
 
@@ -408,4 +414,93 @@ class MediaStoreLibraryScannerTest {
             assertFalse(songDao.current.containsKey(1))
             assertTrue(songDao.current.containsKey(2))
         }
+
+    @Test
+    fun `scan stores each song's volume`() = runTest {
+        source.rows = listOf(usbSong(id = 1))
+
+        scanner.scanLibrary()
+
+        assertEquals(USB, songDao.current.getValue(1).volumeName)
+    }
+
+    @Test
+    fun `a song on a volume that is not mounted is kept long after the startup grace period`() = runTest {
+        mountedVolumes = setOf(INTERNAL, USB)
+        source.rows = listOf(usbSong(id = 1))
+        scanner.scanLibrary()
+
+        mountedVolumes = setOf(INTERNAL)
+        source.rows = emptyList()
+        fakeClockMs += 10 * STARTUP_GRACE_PERIOD_MS
+        scanner.scanLibrary()
+
+        assertTrue(songDao.current.containsKey(1))
+    }
+
+    @Test
+    fun `a song on a volume that mounts late gets a full grace period from the mount`() = runTest {
+        mountedVolumes = setOf(INTERNAL, USB)
+        source.rows = listOf(usbSong(id = 1))
+        scanner.scanLibrary()
+
+        // A later boot: the scanner is new, and the USB volume appears well after it.
+        scanner = MediaStoreLibraryScanner(
+            source, playlistScanner, songDao, albumDao, artistDao, appPreferences,
+        ) { mountedVolumes }
+        scanner.elapsedRealtimeMs = { fakeClockMs }
+        mountedVolumes = setOf(INTERNAL)
+        source.rows = emptyList()
+        scanner.scanLibrary()
+        fakeClockMs += 2 * STARTUP_GRACE_PERIOD_MS
+
+        mountedVolumes = setOf(INTERNAL, USB)
+        scanner.scanLibrary()
+        assertTrue(songDao.current.containsKey(1))
+
+        fakeClockMs += STARTUP_GRACE_PERIOD_MS
+        scanner.scanLibrary()
+        assertFalse(songDao.current.containsKey(1))
+    }
+
+    @Test
+    fun `a volume that unmounts and mounts again starts a new grace period`() = runTest {
+        mountedVolumes = setOf(INTERNAL, USB)
+        source.rows = listOf(usbSong(id = 1))
+        scanner.scanLibrary()
+        fakeClockMs += 2 * STARTUP_GRACE_PERIOD_MS
+
+        mountedVolumes = setOf(INTERNAL)
+        source.rows = emptyList()
+        scanner.scanLibrary()
+        fakeClockMs += 1
+
+        mountedVolumes = setOf(INTERNAL, USB)
+        scanner.scanLibrary()
+
+        assertTrue(songDao.current.containsKey(1))
+    }
+
+    @Test
+    fun `force scanning deletes a missing song even when its volume is not mounted`() = runTest {
+        mountedVolumes = setOf(INTERNAL, USB)
+        source.rows = listOf(usbSong(id = 1))
+        scanner.scanLibrary()
+
+        mountedVolumes = setOf(INTERNAL)
+        source.rows = emptyList()
+        scanner.scanLibrary(force = true)
+
+        assertFalse(songDao.current.containsKey(1))
+    }
+
+    private fun usbSong(id: Long) = rawAudioRow(
+        id = id, title = "Song $id", artistId = 10, artistName = "Artist X", albumId = 100, albumName = "Album 1",
+        relativePath = "Music/", volumeName = USB,
+    )
+
+    private companion object {
+        const val INTERNAL = "external_primary"
+        const val USB = "1234-abcd"
+    }
 }

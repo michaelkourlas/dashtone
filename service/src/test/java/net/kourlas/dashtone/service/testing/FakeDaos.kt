@@ -14,6 +14,7 @@ import net.kourlas.dashtone.service.data.local.QueueStateDao
 import net.kourlas.dashtone.service.data.local.QueueStateEntity
 import net.kourlas.dashtone.service.data.local.SongDao
 import net.kourlas.dashtone.service.data.local.SongEntity
+import net.kourlas.dashtone.service.data.local.SongIdAndVolume
 
 /**
  * In-memory fakes standing in for Room's generated DAOs. They intentionally don't replicate exact
@@ -44,6 +45,9 @@ class FakeSongDao : SongDao {
         state.value.values.firstOrNull { it.albumId == albumId }
 
     override suspend fun getAllIds(): List<Long> = state.value.keys.toList()
+
+    override suspend fun getAllIdsAndVolumes(): List<SongIdAndVolume> =
+        state.value.values.map { SongIdAndVolume(it.id, it.volumeName) }
 
     override suspend fun count(): Int = state.value.size
 

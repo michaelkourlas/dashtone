@@ -12,7 +12,9 @@ interface LibraryScanner {
      * been freshly created -- so [force] defaults to false: for a brief grace period after this
      * scanner is created, a missing song is left alone rather than deleted, since it may simply
      * not be indexed yet (see the scanner implementation's own comment on why that's scoped to
-     * just after creation, not the scanner's whole lifetime). [force] = true skips that grace
+     * just after creation, not the scanner's whole lifetime). The same grace period applies to a
+     * volume that mounts later, and a song on a volume that is not mounted is always left alone,
+     * since MediaStore does not report it at all. [force] = true skips that grace
      * period and deletes immediately, for the one case where waiting would be actively wrong: an
      * explicit, deliberate user action -- tapping "Rescan Library," or just having granted the
      * permission this scan needed -- that legitimately means "sync to what's there right now,"

@@ -24,6 +24,7 @@ class MediaStoreLibraryScanner @Inject constructor(
     private val albumDao: AlbumDao,
     private val artistDao: ArtistDao,
     private val appPreferences: AppPreferences,
+    private val attachedVolumes: AttachedVolumes,
 ) : LibraryScanner {
 
     // Guards against overlapping scans triggered concurrently by a ContentObserver callback and
@@ -55,12 +56,22 @@ class MediaStoreLibraryScanner @Inject constructor(
     // the user's own confirmation that now is the right time to sync.
     private var startupGraceDeadlineMs: Long? = null
 
+    // The same race happens again for each volume that mounts later, such as a USB stick that
+    // appears some time after ignition, and while a volume is unmounted MediaStore does not report
+    // its songs at all. So a missing song on a known volume is deleted only after its volume has
+    // been mounted for a full grace period, measured from the first scan that saw it mounted. A
+    // volume that unmounts loses its entry, so a later mount starts a new period. Songs without a
+    // volume (API < 29), or a platform that cannot list volumes, fall back to
+    // startupGraceDeadlineMs.
+    private val volumeMountedSinceMs = HashMap<String, Long>()
+
     override suspend fun scanLibrary(force: Boolean): Unit = withContext(Dispatchers.IO) {
         scanMutex.withLock {
             val excludedFolders = appPreferences.excludedFolders.first()
             val rows = audioSource.queryAllAudio()
                 .filter { folderKey(it.volumeName, topLevelFolderOf(it.relativePath)) !in excludedFolders }
-            val existingSongIds = songDao.getAllIds().toHashSet()
+            val existingSongs = songDao.getAllIdsAndVolumes()
+            val existingSongIds = existingSongs.mapTo(HashSet()) { it.id }
 
             val artists = LinkedHashMap<Long, ArtistEntity>()
             val albumNames = LinkedHashMap<Long, AlbumEntity>()
@@ -94,6 +105,7 @@ class MediaStoreLibraryScanner @Inject constructor(
                     albumArtistName = row.albumArtistName,
                     composerName = row.composerName,
                     folderPath = fullFolderPathOf(row.relativePath),
+                    volumeName = row.volumeName,
                 )
             }
             // Parents must be upserted before songs due to the FK constraints on SongEntity.
@@ -107,9 +119,16 @@ class MediaStoreLibraryScanner @Inject constructor(
             // is always the one in effect.
             val now = elapsedRealtimeMs()
             val deadline = startupGraceDeadlineMs ?: (now + STARTUP_GRACE_PERIOD_MS).also { startupGraceDeadlineMs = it }
+            val mountedVolumes = attachedVolumes.names()
+            if (mountedVolumes != null) {
+                volumeMountedSinceMs.keys.retainAll(mountedVolumes)
+                for (volume in mountedVolumes) volumeMountedSinceMs.putIfAbsent(volume, now)
+            }
             val incomingSongIds = songs.mapTo(HashSet()) { it.id }
-            val missingThisScan = existingSongIds - incomingSongIds
-            val confirmedMissing = if (force || now >= deadline) missingThisScan else emptySet()
+            val confirmedMissing = existingSongs
+                .filter { it.id !in incomingSongIds }
+                .filter { force || canDeleteMissing(it.volumeName, mountedVolumes, now, deadline) }
+                .mapTo(HashSet()) { it.id }
             if (confirmedMissing.isNotEmpty()) {
                 songDao.deleteByIds(confirmedMissing.toList())
             }
@@ -136,6 +155,12 @@ class MediaStoreLibraryScanner @Inject constructor(
                 confirmedMissing.isNotEmpty() || incomingSongIds.any { it !in existingSongIds }
             playlistScanner.scanPlaylists(pathToSongId, force, librarySongsChanged)
         }
+    }
+
+    private fun canDeleteMissing(volumeName: String?, mountedVolumes: Set<String>?, now: Long, deadline: Long): Boolean {
+        if (volumeName == null || mountedVolumes == null) return now >= deadline
+        val mountedSince = volumeMountedSinceMs[volumeName] ?: return false
+        return now - mountedSince >= STARTUP_GRACE_PERIOD_MS
     }
 
     override suspend fun availableFolders(): List<LibraryFolder> = withContext(Dispatchers.IO) {
